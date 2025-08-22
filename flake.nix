@@ -65,7 +65,12 @@
       ax-shell-python = pkgs.python312.withPackages ax-shell-python-packages;
 
       runtimeDeps = with pkgs; [
+        hicolor-icon-theme
         adwaita-icon-theme
+        gsettings-desktop-schemas
+        dconf
+        xorg.libXcursor
+        xorg.xcursorthemes
         cinnamon-desktop
         networkmanager
         playerctl
@@ -79,16 +84,20 @@
         gdk-pixbuf
         pango
         libdbusmenu-gtk3
-	vte
-	nvtopPackages.full
+        vte
+        nvtopPackages.full
       ];
 
       ax-shell-pkg = pkgs.callPackage ./default.nix {
-        inherit
-          self
-          ax-shell-python
-          runtimeDeps;
-      };
+	  self = self;
+	  ax-shell-python = ax-shell-python;
+	  runtimeDeps = runtimeDeps;
+          adwaita-icon-theme = pkgs.adwaita-icon-theme;
+          xorg = pkgs.xorg;
+          gdk-pixbuf = pkgs.gdk-pixbuf;
+          glib = pkgs.glib;
+          gsettings-desktop-schemas = pkgs.gsettings-desktop-schemas;
+	};
 
     in {
       packages = {
