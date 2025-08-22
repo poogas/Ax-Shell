@@ -21,8 +21,13 @@ stdenv.mkDerivation {
     runHook preInstall
     mkdir -p $out/lib/ax-shell
     cp -r ./* $out/lib/ax-shell/
+
+    depsPath=${lib.makeBinPath runtimeDeps}
+
     makeWrapper ${ax-shell-python}/bin/python $out/bin/ax-shell \
-      --add-flags "$out/lib/ax-shell/main.py"
+      --add-flags "$out/lib/ax-shell/main.py" \
+      --prefix PATH : "$depsPath" # И добавляем этот PATH к скрипту-обертке
+    
     runHook postInstall
   '';
 
