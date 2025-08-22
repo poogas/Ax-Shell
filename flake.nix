@@ -41,7 +41,6 @@
             version = "unstable-${self.shortRev or "dirty"}";
             src = inputs.fabric-gtk;
             format = "pyproject";
-            # postPatch больше не нужен
             nativeBuildInputs =
               [ps_.setuptools ps_.wheel]
               ++ (with pkgs; [cairo gobject-introspection glib pkg-config]);
@@ -52,10 +51,7 @@
               ps_.pygobject3
             ];
           })
-          # --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-          # Добавляем недостающий пакет dbus-python
           ps_.dbus-python
-
           ps_.ijson
           ps_.numpy
           ps_.pillow
@@ -68,7 +64,6 @@
 
       ax-shell-python = pkgs.python312.withPackages ax-shell-python-packages;
 
-      # ... (остальная часть flake.nix остается без изменений)
       runtimeDeps = with pkgs; [
         adwaita-icon-theme
         cinnamon-desktop
@@ -85,40 +80,14 @@
         pango
         libdbusmenu-gtk3
 	vte
-      ];
-
-      devTools = with pkgs; [
-        inputs.fabric-cli.packages.${system}.default
-        brightnessctl
-        cava
-        cliphist
-        gpu-screen-recorder
-        grimblast
-        hypridle
-        hyprlock
-        hyprpicker
-        hyprshot
-        hyprsunset
-        imagemagick
-        matugen
-        noto-fonts-emoji
-        nvtopPackages.full
-        swappy
-        swww
-        tesseract
-        tmux
-        uwsm
-        webp-pixbuf-loader
-        wl-clipboard
-        wlinhibit
+	nvtopPackages.full
       ];
 
       ax-shell-pkg = pkgs.callPackage ./default.nix {
         inherit
           self
           ax-shell-python
-          runtimeDeps
-          devTools;
+          runtimeDeps;
       };
 
     in {

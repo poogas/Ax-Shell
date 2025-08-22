@@ -4,7 +4,6 @@
   self,
   ax-shell-python,
   runtimeDeps,
-  devTools,
   wrapGAppsHook3,
   pkg-config,
   makeWrapper,
@@ -14,7 +13,7 @@ stdenv.mkDerivation {
   version = "unstable-${self.shortRev or "dirty"}";
   src = self;
 
-  nativeBuildInputs = [wrapGAppsHook3 pkg-config makeWrapper] ++ devTools;
+  nativeBuildInputs = [wrapGAppsHook3 pkg-config makeWrapper];
   buildInputs = [ax-shell-python] ++ runtimeDeps;
   dontWrapQtApps = true;
 
