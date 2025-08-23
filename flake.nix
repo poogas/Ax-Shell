@@ -23,6 +23,17 @@
         config.allowUnfree = true;
       };
 
+      tabler-icons-font = pkgs.stdenv.mkDerivation {
+        pname = "tabler-icons-font";
+        version = "local";
+        src = self;
+
+        installPhase = ''
+          mkdir -p $out/share/fonts/truetype
+          cp $src/assets/fonts/tabler-icons/tabler-icons.ttf $out/share/fonts/truetype/
+        '';
+      };
+
       ax-shell-python-packages = ps:
         let
           ps_ = ps.override {
@@ -56,6 +67,7 @@
           ps_.numpy
           ps_.pillow
           ps_.psutil
+          ps_.pywayland
           ps_.requests
           ps_.setproctitle
           ps_.toml
@@ -67,9 +79,8 @@
       runtimeDeps = with pkgs; [
         adwaita-icon-theme
         cinnamon-desktop
-        networkmanager
-        playerctl
         gnome-bluetooth
+        inputs.fabric-cli.packages.${system}.default
         inputs.gray.packages.${system}.default
         glib
         gobject-introspection
@@ -78,9 +89,36 @@
         cairo
         gdk-pixbuf
         pango
+        power-profiles-daemon
         libdbusmenu-gtk3
+        libnotify
+        upower
         vte
+        webp-pixbuf-loader
+        brightnessctl
+        cava
+        cliphist
+        gnome-bluetooth
+        gpu-screen-recorder
+        grimblast
+        hypridle
+        hyprlock
+        hyprpicker
+        hyprshot
+        hyprsunset
+        imagemagick
+        matugen
+        networkmanager
         nvtopPackages.full
+        playerctl
+        swappy
+        swww
+        tesseract
+        tmux
+        unzip
+        uwsm
+        wl-clipboard
+        wlinhibit
       ];
 
       ax-shell-pkg = pkgs.callPackage ./default.nix {
@@ -88,6 +126,7 @@
 	  ax-shell-python = ax-shell-python;
 	  runtimeDeps = runtimeDeps;
           adwaita-icon-theme = pkgs.adwaita-icon-theme;
+	  tabler-icons-font = tabler-icons-font;
 	};
 
     in {

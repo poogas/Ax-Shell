@@ -9,6 +9,7 @@
   makeWrapper,
   gtk3,
   adwaita-icon-theme,
+  tabler-icons-font,
 }:
 stdenv.mkDerivation {
   pname = "ax-shell";
@@ -17,7 +18,7 @@ stdenv.mkDerivation {
 
   nativeBuildInputs = [wrapGAppsHook3 pkg-config makeWrapper gtk3];
 
-  buildInputs = [ax-shell-python] ++ runtimeDeps;
+  buildInputs = [ax-shell-python tabler-icons-font] ++ runtimeDeps;
   dontWrapQtApps = true;
 
   installPhase = ''
@@ -38,6 +39,7 @@ stdenv.mkDerivation {
     gappsWrapperArgs+=(--set XCURSOR_THEME "Adwaita")
     gappsWrapperArgs+=(--set XCURSOR_SIZE "24")
     gappsWrapperArgs+=(--prefix XCURSOR_PATH : "${adwaita-icon-theme}/share/icons")
+    gappsWrapperArgs+=(--prefix XDG_DATA_DIRS : "${tabler-icons-font}/share")
   '';
 
 
