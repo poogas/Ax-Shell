@@ -78,6 +78,7 @@
 
       runtimeDeps = with pkgs; [
         adwaita-icon-theme
+        papirus-icon-theme
         cinnamon-desktop
         gnome-bluetooth
         inputs.fabric-cli.packages.${system}.default

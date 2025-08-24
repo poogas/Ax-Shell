@@ -40,6 +40,7 @@ stdenv.mkDerivation {
     gappsWrapperArgs+=(--set XCURSOR_SIZE "24")
     gappsWrapperArgs+=(--prefix XCURSOR_PATH : "${adwaita-icon-theme}/share/icons")
     gappsWrapperArgs+=(--prefix XDG_DATA_DIRS : "${tabler-icons-font}/share")
+    gappsWrapperArgs+=(--prefix XDG_DATA_DIRS : "${adwaita-icon-theme}/share")
   '';
 
 
