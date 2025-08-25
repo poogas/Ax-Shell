@@ -45,7 +45,7 @@ DATETIME_12H_FORMAT = False  # Default value if config file doesn't exist
 
 def load_config():
     """Load the configuration from config.json"""
-    config_path = os.path.expanduser(f"~/.config/{APP_NAME_CAP}/config/config.json")
+    config_path = CONFIG_FILE
     config = {}
 
     if os.path.exists(config_path):
