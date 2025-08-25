@@ -22,7 +22,9 @@ USERNAME = os.getlogin()
 HOSTNAME = os.uname().nodename
 HOME_DIR = os.path.expanduser("~")
 
-CONFIG_DIR = os.path.expanduser(f"~/.config/{APP_NAME}")
+XDG_STATE_HOME = os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state"))
+STATE_DIR = os.path.join(XDG_STATE_HOME, APP_NAME)
+os.makedirs(STATE_DIR, exist_ok=True)
 
 screen = Gdk.Screen.get_default()
 CURRENT_WIDTH = screen.get_width()
@@ -31,7 +33,7 @@ CURRENT_HEIGHT = screen.get_height()
 
 WALLPAPERS_DIR_DEFAULT = os.environ.get("AX_SHELL_WALLPAPERS_DIR_DEFAULT", get_relative_path("../assets/wallpapers_example"))
 CONFIG_FILE = os.environ.get("AX_SHELL_CONFIG_FILE", get_relative_path("../config/config.json"))
-MATUGEN_STATE_FILE = os.path.join(CONFIG_DIR, "matugen")
+MATUGEN_STATE_FILE = os.path.join(STATE_DIR, "matugen")
 
 
 BAR_WORKSPACE_USE_CHINESE_NUMERALS = False
