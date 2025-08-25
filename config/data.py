@@ -30,7 +30,7 @@ CURRENT_HEIGHT = screen.get_height()
 
 
 WALLPAPERS_DIR_DEFAULT = os.environ.get("AX_SHELL_WALLPAPERS_DIR_DEFAULT", get_relative_path("../assets/wallpapers_example"))
-CONFIG_FILE = get_relative_path("../config/config.json")
+CONFIG_FILE = os.environ.get("AX_SHELL_CONFIG_FILE", get_relative_path("../config/config.json"))
 MATUGEN_STATE_FILE = os.path.join(CONFIG_DIR, "matugen")
 
 
