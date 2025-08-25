@@ -123,11 +123,11 @@
       ];
 
       ax-shell-pkg = pkgs.callPackage ./default.nix {
-	  self = self;
-	  ax-shell-python = ax-shell-python;
-	  runtimeDeps = runtimeDeps;
+          self = self;
+          ax-shell-python = ax-shell-python;
+          runtimeDeps = runtimeDeps;
           adwaita-icon-theme = pkgs.adwaita-icon-theme;
-	  tabler-icons-font = tabler-icons-font;
+          tabler-icons-font = tabler-icons-font;
 	};
 
     in {
@@ -141,12 +141,12 @@
         program = "${ax-shell-pkg}/bin/ax-shell";
         meta.description = "A custom launcher for the Ax-Shell.";
       };
-
-      homeManagerModules.default = import ./nix/modules/home-manager.nix;
     })
     // {
       overlays.default = final: prev: {
         ax-shell = self.packages.${prev.system}.ax-shell;
       };
+
+      homeManagerModules.default = import ./nix/modules/home-manager.nix;
     };
 }
