@@ -22,6 +22,8 @@ USERNAME = os.getlogin()
 HOSTNAME = os.uname().nodename
 HOME_DIR = os.path.expanduser("~")
 
+CURRENT_WALLPAPER_PATH = os.path.expanduser("~/.current.wall")
+
 XDG_STATE_HOME = os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state"))
 STATE_DIR = os.path.join(XDG_STATE_HOME, APP_NAME)
 os.makedirs(STATE_DIR, exist_ok=True)

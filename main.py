@@ -8,7 +8,7 @@ from fabric import Application
 from fabric.utils import exec_shell_command_async, get_relative_path
 from gi.repository import GLib
 
-from config.data import APP_NAME, APP_NAME_CAP, CACHE_DIR, CONFIG_FILE, HOME_DIR
+from config.data import APP_NAME, APP_NAME_CAP, CACHE_DIR, CONFIG_FILE, HOME_DIR, CURRENT_WALLPAPER_PATH
 from modules.bar import Bar
 from modules.corners import Corners
 from modules.dock import Dock
@@ -25,7 +25,7 @@ if __name__ == "__main__":
         config_script_path = get_relative_path("config/config.py")
         exec_shell_command_async(f"python {config_script_path}")
 
-    current_wallpaper = os.path.expanduser("~/.current.wall")
+    current_wallpaper = CURRENT_WALLPAPER_PATH
     if not os.path.exists(current_wallpaper):
         nix_wallpapers_path = os.getenv("AX_SHELL_WALLPAPERS_DIR_DEFAULT")
         source_wallpaper = os.path.join(nix_wallpapers_path, "example-1.jpg")

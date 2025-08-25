@@ -47,7 +47,7 @@ class PlayerBox(Box):
 
         self.cover = CircleImage(
             name="player-cover",
-            image_file=os.path.expanduser("~/.current.wall"),
+            image_file=data.CURRENT_WALLPAPER_PATH,
             size=162 if not vertical_mode else 96,
             h_align="center",
             v_align="center",
@@ -219,7 +219,7 @@ class PlayerBox(Box):
             else:
                 self._set_cover_image(mp.arturl)
         else:
-            fallback = os.path.expanduser("~/.current.wall")
+            fallback = data.CURRENT_WALLPAPER_PATH
             self._set_cover_image(fallback)
             file_obj = Gio.File.new_for_path(fallback)
             monitor = file_obj.monitor_file(Gio.FileMonitorFlags.NONE, None)
@@ -267,7 +267,7 @@ class PlayerBox(Box):
         if image_path and os.path.isfile(image_path):
             self.cover.set_image_from_file(image_path)
         else:
-            fallback = os.path.expanduser("~/.current.wall")
+            fallback = data.CURRENT_WALLPAPER_PATH
             self.cover.set_image_from_file(fallback)
             file_obj = Gio.File.new_for_path(fallback)
             monitor = file_obj.monitor_file(Gio.FileMonitorFlags.NONE, None)
@@ -289,7 +289,7 @@ class PlayerBox(Box):
             temp_file.close()
             local_arturl = temp_file.name
         except Exception:
-            local_arturl = os.path.expanduser("~/.current.wall")
+            local_arturl = data.CURRENT_WALLPAPER_PATH
         GLib.idle_add(self._set_cover_image, local_arturl)
         return None
 
@@ -302,7 +302,7 @@ class PlayerBox(Box):
             self.play_pause.remove_style_class("playing")
 
     def on_wallpaper_changed(self, monitor, file, other_file, event):
-        self.cover.set_image_from_file(os.path.expanduser("~/.current.wall"))
+        self.cover.set_image_from_file(data.CURRENT_WALLPAPER_PATH)
 
     def _on_prev_clicked(self, button):
         if self.mpris_player:
