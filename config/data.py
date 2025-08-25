@@ -22,8 +22,7 @@ USERNAME = os.getlogin()
 HOSTNAME = os.uname().nodename
 HOME_DIR = os.path.expanduser("~")
 
-CURRENT_WALLPAPER_PATH = os.path.expanduser("~/.current.wall")
-
+XDG_CONFIG_HOME = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
 XDG_STATE_HOME = os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state"))
 STATE_DIR = os.path.join(XDG_STATE_HOME, APP_NAME)
 os.makedirs(STATE_DIR, exist_ok=True)
@@ -32,7 +31,7 @@ screen = Gdk.Screen.get_default()
 CURRENT_WIDTH = screen.get_width()
 CURRENT_HEIGHT = screen.get_height()
 
-
+CURRENT_WALLPAPER_PATH = os.path.join(XDG_CONFIG_HOME, "ax-shell/current.wall")
 WALLPAPERS_DIR_DEFAULT = os.environ.get("AX_SHELL_WALLPAPERS_DIR_DEFAULT", get_relative_path("../assets/wallpapers_example"))
 CONFIG_FILE = os.environ.get("AX_SHELL_CONFIG_FILE", get_relative_path("../config/config.json"))
 MATUGEN_STATE_FILE = os.path.join(STATE_DIR, "matugen")

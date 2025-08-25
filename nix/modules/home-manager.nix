@@ -195,7 +195,7 @@ in {
   in {
     home.packages = [ wrappedPackage ];
 
-    home.file.".current.wall" = {
+    home.file."${config.xdg.configHome}/ax-shell/current.wall" = {
       source = cfg.settings.defaultWallpaper;
       force = true;
     };

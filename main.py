@@ -27,6 +27,7 @@ if __name__ == "__main__":
 
     current_wallpaper = CURRENT_WALLPAPER_PATH
     if not os.path.exists(current_wallpaper):
+        os.makedirs(os.path.dirname(current_wallpaper), exist_ok=True)
         nix_wallpapers_path = os.getenv("AX_SHELL_WALLPAPERS_DIR_DEFAULT")
         source_wallpaper = os.path.join(nix_wallpapers_path, "example-1.jpg")
         os.symlink(source_wallpaper, current_wallpaper)
