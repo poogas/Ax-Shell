@@ -88,6 +88,12 @@ in {
         description = "Путь к директории с обоями.";
       };
 
+      defaultWallpaper = mkOption {
+        type = types.path; # Тип "путь", Nix проверит, что файл существует
+        default = "${cfg.package}/share/ax-shell/assets/wallpapers_example/example-1.jpg";
+        description = "Путь к изображению, которое будет использоваться как обои по умолчанию.";
+      };
+
       terminalCommand = mkOption {
         type = types.str;
         default = "kitty -e";
@@ -188,6 +194,11 @@ in {
     };
   in {
     home.packages = [ wrappedPackage ];
+
+    home.file.".current.wall" = {
+      source = cfg.settings.defaultWallpaper;
+      force = true;
+    };
 
     wayland.windowManager.hyprland.settings = mkIf (cfg.autostart.enable && hyprlandEnabled) {
       exec-once = [
