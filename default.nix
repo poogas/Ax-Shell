@@ -20,21 +20,22 @@ stdenv.mkDerivation {
   buildInputs = [ ax-shell-python tabler-icons-font ] ++ runtimeDeps;
   dontWrapQtApps = true;
 
-  pythonPath = [ self ];
-
   installPhase = ''
     runHook preInstall;
 
-    mkdir -p $out/bin;
+    mkdir -p $out/share/ax-shell
+    cp -r ./* $out/share/ax-shell/
+
     makeWrapper ${ax-shell-python}/bin/python $out/bin/ax-shell \
+      --prefix PYTHONPATH : "$out/share/ax-shell" \
       --add-flags "-m main"
 
     runHook postInstall;
   '';
 
   preFixup = ''
-    gappsWrapperArgs+=(--set AX_SHELL_WALLPAPERS_DIR_DEFAULT "${self}/assets/wallpapers_example");
-    gappsWrapperArgs+=(--set FABRIC_CSS_PATH "${self}/main.css");
+    gappsWrapperArgs+=(--set AX_SHELL_WALLPAPERS_DIR_DEFAULT "${placeholder "out"}/share/ax-shell/assets/wallpapers_example");
+    gappsWrapperArgs+=(--set FABRIC_CSS_PATH "${placeholder "out"}/share/ax-shell/main.css");
     gappsWrapperArgs+=(--prefix PATH : "${lib.makeBinPath runtimeDeps}");
     gappsWrapperArgs+=(--set XCURSOR_THEME "Adwaita");
     gappsWrapperArgs+=(--set XCURSOR_SIZE "24");
