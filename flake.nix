@@ -141,6 +141,8 @@
         program = "${ax-shell-pkg}/bin/ax-shell";
         meta.description = "A custom launcher for the Ax-Shell.";
       };
+
+      homeManagerModules.default = import ./nix/modules/home-manager.nix;
     })
     // {
       overlays.default = final: prev: {
