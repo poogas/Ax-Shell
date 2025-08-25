@@ -15,7 +15,6 @@ from fabric.widgets.scrolledwindow import ScrolledWindow
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 from PIL import Image
 
-import config.config
 import config.data as data
 import modules.icons as icons
 
@@ -538,6 +537,3 @@ class WallpaperSelector(Box):
         selected_scheme = self.scheme_dropdown.get_active_id()
         # Run matugen with the chosen hex color and selected scheme
         exec_shell_command_async(f'matugen color hex "{hex_color}" -t {selected_scheme}')
-        # Optionally save the chosen color to config if needed later
-        # config.config.bind_vars["matugen_hex_color"] = hex_color
-        # config.config.save_config() # Removed as save_config doesn't exist
