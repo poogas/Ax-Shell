@@ -1,15 +1,15 @@
 :vars {
-  --foreground: #f1dedc;
+  --foreground: #f1dedd;
   --background: #1a1110;
-  --cursor: #f1dedc;
-  --primary: #ffb4ac;
-  --on-primary: #561e1a;
-  --secondary: #e7bdb8;
+  --cursor: #f1dedd;
+  --primary: #ffb3ad;
+  --on-primary: #571e1b;
+  --secondary: #e7bdb9;
   --on-secondary: #442927;
-  --tertiary: #e0c38c;
-  --on-tertiary: #3f2d04;
+  --tertiary: #e1c28c;
+  --on-tertiary: #402d04;
   --surface: #1a1110;
-  --surface-bright: #423735;
+  --surface-bright: #423736;
   --error: #ffb4ab;
   --error-dim: #ff8678;
   --on-error: #690005;

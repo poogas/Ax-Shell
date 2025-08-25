@@ -33,6 +33,7 @@ stdenv.mkDerivation {
   '';
 
   preFixup = ''
+    gappsWrapperArgs+=(--set AX_SHELL_WALLPAPERS_DIR_DEFAULT "${self}/assets/wallpapers_example");
     gappsWrapperArgs+=(--set FABRIC_CSS_PATH "${self}/main.css");
     gappsWrapperArgs+=(--prefix PATH : "${lib.makeBinPath runtimeDeps}");
     gappsWrapperArgs+=(--set XCURSOR_THEME "Adwaita");

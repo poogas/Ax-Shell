@@ -221,11 +221,6 @@ class WallpaperSelector(Box):
         file_name = random.choice(self.files)
         full_path = os.path.join(data.WALLPAPERS_DIR, file_name)
         selected_scheme = self.scheme_dropdown.get_active_id()
-        current_wall = os.path.expanduser(f"~/.current.wall")
-
-        if os.path.isfile(current_wall) or os.path.islink(current_wall): # Check for link too
-            os.remove(current_wall)
-        os.symlink(full_path, current_wall)
 
         if self.matugen_switcher.get_active():
             exec_shell_command_async(f'matugen image "{full_path}" -t {selected_scheme}')
@@ -309,10 +304,6 @@ class WallpaperSelector(Box):
         file_name = model[path][1]
         full_path = os.path.join(data.WALLPAPERS_DIR, file_name)
         selected_scheme = self.scheme_dropdown.get_active_id()
-        current_wall = os.path.expanduser(f"~/.current.wall")
-        if os.path.isfile(current_wall) or os.path.islink(current_wall):
-            os.remove(current_wall)
-        os.symlink(full_path, current_wall)
         if self.matugen_switcher.get_active():
             # Matugen is enabled: run the normal command.
             exec_shell_command_async(f'matugen image "{full_path}" -t {selected_scheme}')
