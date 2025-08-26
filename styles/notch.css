@@ -130,6 +130,6 @@
 
 #notch-wrap.visible {
   animation-name: fadeInAnimation;
-  animation-duration: 1s;
+  animation-duration: 0.25s;
   animation-fill-mode: forwards;
 }

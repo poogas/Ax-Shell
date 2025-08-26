@@ -405,7 +405,7 @@ class Notch(Window):
 
         self.add(self.notch_wrap)
 
-        GLib.timeout_add(800, self._reveal_on_load)
+        GLib.timeout_add(600, self._reveal_on_load)
 
         self.show_all()
 
