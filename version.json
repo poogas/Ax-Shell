@@ -1,7 +1,7 @@
 {
-	"version": "0.0.34", 
+	"version": "0.0.35", 
   "pkg_update": false,
 	"changelog": [
-    "<b>fix:</b> Weather self-activating visibility"
+    "<b>fix:</b> Calendar showing wrong weekday on some devices"
   ]
 }
