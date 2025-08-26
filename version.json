@@ -1,7 +1,7 @@
 {
-	"version": "0.0.33", 
+	"version": "0.0.34", 
   "pkg_update": false,
 	"changelog": [
-    "<b>feat:</b> Search by command in launcher"
+    "<b>fix:</b> Weather self-activating visibility"
   ]
 }
