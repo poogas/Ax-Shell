@@ -404,6 +404,9 @@ class Notch(Window):
         )
 
         self.add(self.notch_wrap)
+
+        GLib.timeout_add(800, self._reveal_on_load)
+
         self.show_all()
 
         self.add_keybinding("Escape", lambda *_: self.close_notch())
@@ -433,6 +436,12 @@ class Notch(Window):
             self.notch_revealer.set_reveal_child(False)
 
         self.connect("key-press-event", self.on_key_press)
+
+    
+    def _reveal_on_load(self):
+        """Adds the 'visible' class to trigger the CSS fade-in animation."""
+        self.notch_wrap.get_style_context().add_class("visible")
+        return False # Ensures the timer runs only once
 
     def on_button_enter(self, widget, event):
         self.is_hovered = True

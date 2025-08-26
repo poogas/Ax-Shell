@@ -2,10 +2,6 @@
   margin: 0 20px 10px 20px;
 }
 
-#notch-wrap {
-  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
 #notch-content {
   background-color: var(--shadow);
   border-radius: 0 0 20px 20px;
@@ -117,4 +113,23 @@
   background-color: var(--shadow);
   padding: 0px;
   border-radius: 36px;
+}
+
+@keyframes fadeInAnimation {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+#notch-wrap {
+  opacity: 0;
+}
+
+#notch-wrap.visible {
+  animation-name: fadeInAnimation;
+  animation-duration: 1s;
+  animation-fill-mode: forwards;
 }
