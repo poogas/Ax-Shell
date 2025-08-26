@@ -1,8 +1,12 @@
 #bar-inner,
 #bar-inner.pills {
   margin: 8px;
-  opacity: 1;
+  opacity: 0;
   transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#bar-inner.visible {
+  opacity: 1;
 }
 
 #bar-inner.dense,

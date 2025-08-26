@@ -12,7 +12,7 @@ from fabric.widgets.centerbox import CenterBox
 from fabric.widgets.datetime import DateTime
 from fabric.widgets.label import Label
 from fabric.widgets.revealer import Revealer
-from gi.repository import Gdk, Gtk
+from gi.repository import Gdk, Gtk, GLib
 
 import config.data as data
 import modules.icons as icons
@@ -52,8 +52,8 @@ class Bar(Window):
             name="bar",
             layer="top",
             exclusivity="auto",
-            visible=True,
-            all_visible=True,
+            visible=False,
+            all_visible=False,
         )
 
         self.anchor_var = ""
@@ -483,8 +483,16 @@ class Bar(Window):
         if data.VERTICAL:
             self.bar_inner.add_style_class("vertical")
 
+        GLib.timeout_add(1200, self._reveal_on_load)
+
         self.systray._update_visibility()
         self.chinese_numbers()
+
+    def _reveal_on_load(self):
+        """Makes the window visible and then triggers the fade-in animation."""
+        self.show_all() # Сначала делаем окно видимым (но оно еще прозрачное)
+        self.bar_inner.get_style_context().add_class("visible")
+        return False  # Ensures the timer runs only once
 
     def apply_component_props(self):
         components = {
