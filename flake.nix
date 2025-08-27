@@ -75,6 +75,29 @@
         ];
 
       ax-shell-python = pkgs.python312.withPackages ax-shell-python-packages;
+      ax-shell-inhibit-pkg = pkgs.stdenv.mkDerivation {
+        pname = "ax-shell-inhibit";
+        version = "unstable-${self.shortRev or "dirty"}";
+        src = self;
+
+        nativeBuildInputs = [ pkgs.makeWrapper ];
+        # buildInputs не нужен, т.к. мы явно указываем путь к python
+        # но лучше оставить для чистоты
+        buildInputs = [ ax-shell-python ];
+
+        installPhase = ''
+          runHook preInstall;
+          
+          mkdir -p $out/bin
+
+          # Здесь мы создаем исполняемый файл-обертку $out/bin/ax-inhibit.
+          # Эта обертка будет вызывать правильный python-интерпретатор...
+          makeWrapper ${ax-shell-python}/bin/python $out/bin/ax-inhibit \
+            --add-flags "$src/scripts/inhibit.py" # ...и передавать ему наш скрипт в качестве аргумента.
+          
+          runHook postInstall;
+        '';
+      };
 
       runtimeDeps = with pkgs; [
         adwaita-icon-theme
@@ -112,6 +135,7 @@
         networkmanager
         nvtopPackages.full
         playerctl
+        procps
         swappy
         swww
         tesseract
@@ -120,6 +144,7 @@
         uwsm
         wl-clipboard
         wlinhibit
+        ax-shell-inhibit-pkg
       ];
 
       ax-shell-pkg = pkgs.callPackage ./default.nix {

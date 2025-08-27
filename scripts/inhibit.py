@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # From https://github.com/stwa/wayland-idle-inhibitor
 # License: WTFPL Version 2
 

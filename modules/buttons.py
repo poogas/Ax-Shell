@@ -1,5 +1,4 @@
 import subprocess
-
 import gi
 from fabric.utils.helpers import exec_shell_command_async
 from fabric.widgets.box import Box
@@ -405,7 +404,7 @@ class CaffeineButton(Button):
             for i in self.widgets:
                 i.add_style_class("disabled")
         except subprocess.CalledProcessError:
-            exec_shell_command_async(f"python {data.HOME_DIR}/.config/{data.APP_NAME_CAP}/scripts/inhibit.py")
+            exec_shell_command_async("ax-inhibit")
             self.caffeine_status.set_label("Enabled")
             for i in self.widgets:
                 i.remove_style_class("disabled")
