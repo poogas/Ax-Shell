@@ -193,7 +193,11 @@ in {
       '';
     };
   in {
-    home.packages = [ wrappedPackage ];
+    home.packages = [ 
+      wrappedPackage
+      pkgs.swww
+      pkgs.matugen
+    ];
 
     home.file."${config.xdg.configHome}/ax-shell/current.wall" = {
       source = cfg.settings.defaultWallpaper;
@@ -202,6 +206,7 @@ in {
 
     wayland.windowManager.hyprland.settings = mkIf (cfg.autostart.enable && hyprlandEnabled) {
       exec-once = [
+        "swww-daemon"
         "${wrappedPackage}/bin/ax-shell &> ${cfg.autostart.logPath}"
       ];
     };
