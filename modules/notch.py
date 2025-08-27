@@ -120,7 +120,7 @@ class Notch(Window):
 
         super().__init__(
             name="notch",
-            layer="top",
+            layer="overlay",
             anchor=anchor_val,
             margin=current_margin_str,
             keyboard_mode="none",
