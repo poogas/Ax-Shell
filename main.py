@@ -1,3 +1,4 @@
+# main.py
 import os
 
 import gi
@@ -8,7 +9,7 @@ from fabric import Application
 from fabric.utils import exec_shell_command_async, get_relative_path
 from gi.repository import GLib
 
-from config.data import APP_NAME, APP_NAME_CAP, CACHE_DIR, CONFIG_FILE, HOME_DIR, CURRENT_WALLPAPER_PATH
+from config.data import APP_NAME, CACHE_DIR, CONFIG_FILE, CURRENT_WALLPAPER_PATH
 from modules.bar import Bar
 from modules.corners import Corners
 from modules.dock import Dock
@@ -32,13 +33,10 @@ if __name__ == "__main__":
         source_wallpaper = os.path.join(nix_wallpapers_path, "example-1.jpg")
         os.symlink(source_wallpaper, current_wallpaper)
 
-    # Load configuration
     from config.data import load_config
-
     config = load_config()
 
     GLib.idle_add(run_updater)
-    # Every hour
     GLib.timeout_add(3600000, run_updater)
 
     corners = Corners()
@@ -49,13 +47,12 @@ if __name__ == "__main__":
     notch.bar = bar
     notification = NotificationPopup(widgets=notch.dashboard.widgets)
 
-    # Set corners visibility based on config
     corners_visible = config.get("corners_visible", True)
     corners.set_visible(corners_visible)
 
     app = Application(
         f"{APP_NAME}", bar, notch, dock, notification, corners
-    )  # Make sure corners is added to the app
+    )
 
     def set_css():
         app.set_stylesheet_from_file(
@@ -63,7 +60,6 @@ if __name__ == "__main__":
         )
 
     app.set_css = set_css
-
     app.set_css()
 
     app.run()

@@ -5,14 +5,33 @@ from fabric.widgets.centerbox import CenterBox
 from fabric.widgets.image import Image
 from fabric.widgets.label import Label
 from fabric.widgets.scrolledwindow import ScrolledWindow
+from loguru import logger
+import subprocess
+from gi.repository import GLib
 
 import modules.icons as icons
 
+def send_notification(summary, body, icon):
+    """
+    Asynchronously sends a system notification using the notify-send utility,
+    without blocking the main thread.
+    """
+    command = ["notify-send", "-a", "Bluetooth", "-i", icon, summary, body]
+    try:
+        # Popen does not wait for the command to complete.
+        subprocess.Popen(command)
+        logger.info(f"Sent notification command: {summary} - {body}")
+    except FileNotFoundError:
+        logger.error("Command 'notify-send' not found. Please install libnotify.")
+    except Exception as e:
+        logger.exception(f"Failed to send notification: {e}")
 
 class BluetoothDeviceSlot(CenterBox):
     def __init__(self, device: BluetoothDevice, **kwargs):
         super().__init__(name="bluetooth-device", **kwargs)
         self.device = device
+        self.previous_connected_state = device.connected # Store the initial state
+        
         self.device.connect("changed", self.on_changed)
         self.device.connect(
             "notify::closed", lambda *_: self.device.closed and self.destroy()
@@ -23,7 +42,6 @@ class BluetoothDeviceSlot(CenterBox):
             name="bluetooth-connect",
             label="Connect",
             on_clicked=lambda *_: self.device.set_connecting(not self.device.connected),
-            style_classes=["connected"] if self.device.connected else None,
         )
 
         self.start_children = [
@@ -38,27 +56,43 @@ class BluetoothDeviceSlot(CenterBox):
                 ],
             )
         ]
-        self.end_children = self.connect_button
+        self.end_children = [self.connect_button]
 
-        self.device.emit("changed")
+        self.on_changed(self.device) # Call to set the initial UI state
 
-    def on_changed(self, *_):
+    def on_changed(self, device, *_):
+        # Notification logic
+        if device.connected != self.previous_connected_state:
+            logger.info(f"Device '{device.name}' connection state changed from {self.previous_connected_state} to {device.connected}")
+            if device.connected:
+                summary = f"{device.name}"
+                body = "Device connected"
+                icon = "bluetooth-active-symbolic"
+            else:
+                summary = f"{device.name}"
+                body = "Device disconnected"
+                icon = "bluetooth-disabled-symbolic"
+            
+            # Send notification
+            GLib.idle_add(send_notification, summary, body, icon)
+        
+        self.previous_connected_state = device.connected
+
+        # UI update logic
         self.connection_label.set_markup(
-            icons.bluetooth_connected if self.device.connected else icons.bluetooth_disconnected
+            icons.bluetooth_connected if device.connected else icons.bluetooth_disconnected
         )
-        if self.device.connecting:
-            self.connect_button.set_label(
-                "Connecting..." if not self.device.connecting else "..."
-            )
+        if device.connecting:
+            self.connect_button.set_label("Connecting...")
+            self.connect_button.set_sensitive(False)
         else:
-            self.connect_button.set_label(
-                "Connect" if not self.device.connected else "Disconnect"
-            )
-        if self.device.connected:
+            self.connect_button.set_label("Disconnect" if device.connected else "Connect")
+            self.connect_button.set_sensitive(True)
+
+        if device.connected:
             self.connect_button.add_style_class("connected")
         else:
             self.connect_button.remove_style_class("connected")
-        return
 
 class BluetoothConnections(Box):
     def __init__(self, **kwargs):
@@ -93,11 +127,8 @@ class BluetoothConnections(Box):
             on_clicked=lambda *_: self.widgets.show_notif()
         )
 
-        self.client.connect("notify::enabled", lambda *_: self.status_label())
-        self.client.connect(
-            "notify::scanning",
-            lambda *_: self.update_scan_label()
-        )
+        self.client.connect("notify::enabled", self.status_label)
+        self.client.connect("notify::scanning", self.update_scan_label)
 
         self.paired_box = Box(spacing=2, orientation="vertical")
         self.available_box = Box(spacing=2, orientation="vertical")
@@ -110,9 +141,9 @@ class BluetoothConnections(Box):
         self.children = [
             CenterBox(
                 name="bluetooth-header",
-                start_children=self.back_button,
-                center_children=Label(name="bluetooth-text", label="Bluetooth Devices"),
-                end_children=self.scan_button
+                start_children=[self.back_button],
+                center_children=[Label(name="bluetooth-text", label="Bluetooth Devices")],
+                end_children=[self.scan_button]
             ),
             ScrolledWindow(
                 name="bluetooth-devices",
@@ -124,11 +155,11 @@ class BluetoothConnections(Box):
             ),
         ]
 
-        self.client.notify("scanning")
-        self.client.notify("enabled")
+        # Use GLib.idle_add to ensure client properties are ready before we check them
+        GLib.idle_add(self.client.notify, "scanning")
+        GLib.idle_add(self.client.notify, "enabled")
 
-    def status_label(self):
-        print(self.client.enabled)
+    def status_label(self, *args):
         if self.client.enabled:
             self.bt_status_text.set_label("Enabled")
             for i in [self.bt_status_button, self.bt_status_text, self.bt_icon, self.bt_label, self.bt_menu_button, self.bt_menu_label]:
@@ -146,10 +177,11 @@ class BluetoothConnections(Box):
         slot = BluetoothDeviceSlot(device)
 
         if device.paired:
-            return self.paired_box.add(slot)
-        return self.available_box.add(slot)
+            self.paired_box.add(slot)
+        else:
+            self.available_box.add(slot)
 
-    def update_scan_label(self):
+    def update_scan_label(self, *args):
         if self.client.scanning:
             self.scan_label.add_style_class("scanning")
             self.scan_button.add_style_class("scanning")
