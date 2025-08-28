@@ -28,6 +28,7 @@ stdenv.mkDerivation {
 
     makeWrapper ${ax-shell-python}/bin/python $out/bin/ax-shell \
       --prefix PYTHONPATH : "$out/share/ax-shell" \
+      --prefix PATH : "${ax-shell-python}/bin" \
       --add-flags "-m main"
 
     runHook postInstall;
