@@ -206,8 +206,8 @@ in {
 
     wayland.windowManager.hyprland.settings = mkIf (cfg.autostart.enable && hyprlandEnabled) {
       exec-once = [
-        "swww-daemon"
-        "${wrappedPackage}/bin/ax-shell &> ${cfg.autostart.logPath}"
+        "uwsm app -- swww-daemon"
+        "uwsm-app $(${wrappedPackage}/bin/ax-shell &> ${cfg.autostart.logPath})"
       ];
     };
   });
