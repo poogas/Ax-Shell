@@ -177,14 +177,14 @@ in
         let
           uwsm-app = "${pkgs.uwsm}/bin/uwsm-app";
           swww-daemon = "${pkgs.swww}/bin/swww-daemon";
-          ax-shell-run = ''
-            ${pkgs.bash}/bin/bash -c "${wrappedPackage}/bin/ax-shell &> ${cfg.autostart.logPath}"
-          '';
+          ax-shell = "${wrappedPackage}/bin/ax-shell &> ${cfg.autostart.logPath}";
         in
         {
           exec-once = mkIf cfg.autostart.enable [
-            "${uwsm-app} -- ${swww-daemon}"
-            "${uwsm-app} -- ${ax-shell-run}"
+            # "${uwsm-app} -- ${swww-daemon}"
+            # "${uwsm-app} -- ${ax-shell-run}"
+	    "swww-daemon"
+	    "${ax-shell}"
           ];
         }
       );
