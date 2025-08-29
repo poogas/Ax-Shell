@@ -177,7 +177,10 @@ in
         let
           uwsm-app = "${pkgs.uwsm}/bin/uwsm-app";
           swww-daemon = "${pkgs.swww}/bin/swww-daemon";
-          ax-shell = "${wrappedPackage}/bin/ax-shell &> ${cfg.autostart.logPath}";
+          # ax-shell = "${wrappedPackage}/bin/ax-shell &> ${cfg.autostart.logPath}";
+          ax-shell = ''
+            bash -c 'mkdir -p "$(dirname "${cfg.autostart.logPath}")" && exec ${wrappedPackage}/bin/ax-shell &> "${cfg.autostart.logPath}"'
+          '';
         in
         {
           exec-once = mkIf cfg.autostart.enable [

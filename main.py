@@ -17,9 +17,6 @@ from modules.notch import Notch
 from modules.notifications import NotificationPopup
 from modules.updater import run_updater
 
-log_dir = os.path.expanduser(f"~/.local/state/{APP_NAME}")
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir, exist_ok=True)
 
 fonts_updated_file = f"{CACHE_DIR}/fonts_updated"
 
