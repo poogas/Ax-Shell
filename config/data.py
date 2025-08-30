@@ -43,7 +43,7 @@ BAR_THEME = "Pills"
 DOCK_THEME = "Pills"
 
 PANEL_THEME = "Notch"
-DATETIME_12H_FORMAT = False  # Default value if config file doesn't exist
+DATETIME_12H_FORMAT = False
 
 
 def load_config():
@@ -62,8 +62,10 @@ def load_config():
 
 
 if os.path.exists(CONFIG_FILE):
+    # --- БЛОК ДЛЯ ЧТЕНИЯ КОНФИГА ИЗ NIX ---
     with open(CONFIG_FILE, "r") as f:
         config = json.load(f)
+    
     WALLPAPERS_DIR = config.get("wallpapers_dir", WALLPAPERS_DIR_DEFAULT)
     BAR_POSITION = config.get("bar_position", "Top")
     VERTICAL = BAR_POSITION in ["Left", "Right"]
@@ -110,6 +112,7 @@ if os.path.exists(CONFIG_FILE):
         "metrics_small_visible", {"cpu": True, "ram": True, "disk": True, "gpu": True}
     )
 else:
+    # --- БЛОК ДЛЯ ЗНАЧЕНИЙ ПО УМОЛЧАНИЮ (ЕСЛИ КОНФИГА НЕТ) ---
     WALLPAPERS_DIR = WALLPAPERS_DIR_DEFAULT
     BAR_POSITION = "Top"
     VERTICAL = False
@@ -135,7 +138,7 @@ else:
         "control": True,
         "network": True,
         "button_tools": True,
-        "button_overview": True,
+        "button_overview": False,
         "ws_container": True,
         "weather": True,
         "battery": True,

@@ -239,11 +239,11 @@ class Bar(Window):
         self.metrics = MetricsSmall()
         self.battery = Battery()
 
-        self.apply_component_props()
-
         self.rev_right = [
-            self.metrics,
-            self.control,
+            item for item, visible in [
+                (self.metrics, self.component_visibility.get("metrics", True)),
+                (self.control, self.component_visibility.get("control", True)),
+            ] if visible
         ]
 
         self.revealer_right = Revealer(
@@ -266,9 +266,11 @@ class Bar(Window):
         )
 
         self.rev_left = [
-            self.weather,
-            self.sysprofiles,
-            self.network,
+            item for item, visible in [
+                (self.weather, self.component_visibility.get("weather", True)),
+                (self.sysprofiles, self.component_visibility.get("sysprofiles", True)),
+                (self.network, self.component_visibility.get("network", True)),
+            ] if visible
         ]
 
         self.revealer_left = Revealer(
@@ -289,46 +291,65 @@ class Bar(Window):
                 self.revealer_left,
             ],
         )
+        
+        # --- НАЧАЛО ИЗМЕНЕНИЙ ---
 
+        # Горизонтальная панель (левая часть)
         self.h_start_children = [
-            self.button_apps,
-            self.ws_container,
-            self.button_overview,
-            self.boxed_revealer_left,
+            item for item, visible in [
+                (self.button_apps, self.component_visibility.get("button_apps", True)),
+                (self.ws_container, self.component_visibility.get("ws_container", True)),
+                (self.button_overview, self.component_visibility.get("button_overview", True)),
+                (self.boxed_revealer_left, True), # Этот виджет не настраивается, всегда видим
+            ] if visible
         ]
 
+        # Горизонтальная панель (правая часть)
         self.h_end_children = [
-            self.boxed_revealer_right,
-            self.battery,
-            self.systray,
-            self.button_tools,
-            self.language,
-            self.date_time,
-            self.button_power,
+            item for item, visible in [
+                (self.boxed_revealer_right, True), # Этот виджет не настраивается, всегда видим
+                (self.battery, self.component_visibility.get("battery", True)),
+                (self.systray, self.component_visibility.get("systray", True)),
+                (self.button_tools, self.component_visibility.get("button_tools", True)),
+                (self.language, self.component_visibility.get("language", True)),
+                (self.date_time, self.component_visibility.get("date_time", True)),
+                (self.button_power, self.component_visibility.get("button_power", True)),
+            ] if visible
         ]
 
+        # Вертикальная панель (верхняя часть)
         self.v_start_children = [
-            self.button_apps,
-            self.systray,
-            self.control,
-            self.sysprofiles,
-            self.network,
-            self.button_tools,
+            item for item, visible in [
+                (self.button_apps, self.component_visibility.get("button_apps", True)),
+                (self.systray, self.component_visibility.get("systray", True)),
+                (self.control, self.component_visibility.get("control", True)),
+                (self.sysprofiles, self.component_visibility.get("sysprofiles", True)),
+                (self.network, self.component_visibility.get("network", True)),
+                (self.button_tools, self.component_visibility.get("button_tools", True)),
+            ] if visible
         ]
 
+        # Вертикальная панель (центральная часть)
         self.v_center_children = [
-            self.button_overview,
-            self.ws_container,
-            self.weather,
+            item for item, visible in [
+                (self.button_overview, self.component_visibility.get("button_overview", True)),
+                (self.ws_container, self.component_visibility.get("ws_container", True)),
+                (self.weather, self.component_visibility.get("weather", True)),
+            ] if visible
         ]
 
+        # Вертикальная панель (нижняя часть)
         self.v_end_children = [
-            self.battery,
-            self.metrics,
-            self.language,
-            self.date_time,
-            self.button_power,
+            item for item, visible in [
+                (self.battery, self.component_visibility.get("battery", True)),
+                (self.metrics, self.component_visibility.get("metrics", True)),
+                (self.language, self.component_visibility.get("language", True)),
+                (self.date_time, self.component_visibility.get("date_time", True)),
+                (self.button_power, self.component_visibility.get("button_power", True)),
+            ] if visible
         ]
+
+        # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
         self.v_all_children = []
         self.v_all_children.extend(self.v_start_children)
@@ -340,7 +361,7 @@ class Bar(Window):
             data.BAR_POSITION == "Bottom"
             or (data.PANEL_THEME == "Panel" and data.BAR_POSITION in ["Top", "Bottom"])
         )
-        
+
         if should_embed_dock:
             if not data.VERTICAL:
                 self.dock_instance = Dock(integrated_mode=True)
@@ -485,83 +506,16 @@ class Bar(Window):
 
         GLib.timeout_add(1200, self._reveal_on_load)
 
+        # Я удалил отсюда вызов apply_component_props, так как он больше не нужен
+        # и может вызывать ошибки, если виджет не был создан.
+
         self.systray._update_visibility()
         self.chinese_numbers()
 
     def _reveal_on_load(self):
-        """Makes the window visible and then triggers the fade-in animation."""
-        self.show_all() # Сначала делаем окно видимым (но оно еще прозрачное)
+        self.show_all()
         self.bar_inner.get_style_context().add_class("visible")
-        return False  # Ensures the timer runs only once
-
-    def apply_component_props(self):
-        components = {
-            "button_apps": self.button_apps,
-            "systray": self.systray,
-            "control": self.control,
-            "network": self.network,
-            "button_tools": self.button_tools,
-            "button_overview": self.button_overview,
-            "ws_container": self.ws_container,
-            "weather": self.weather,
-            "battery": self.battery,
-            "metrics": self.metrics,
-            "language": self.language,
-            "date_time": self.date_time,
-            "button_power": self.button_power,
-            "sysprofiles": self.sysprofiles,
-        }
-
-        for component_name, widget in components.items():
-            if component_name in self.component_visibility:
-                widget.set_visible(self.component_visibility[component_name])
-
-    def toggle_component_visibility(self, component_name):
-        components = {
-            "button_apps": self.button_apps,
-            "systray": self.systray,
-            "control": self.control,
-            "network": self.network,
-            "button_tools": self.button_tools,
-            "button_overview": self.button_overview,
-            "ws_container": self.ws_container,
-            "weather": self.weather,
-            "battery": self.battery,
-            "metrics": self.metrics,
-            "language": self.language,
-            "date_time": self.date_time,
-            "button_power": self.button_power,
-            "sysprofiles": self.sysprofiles,
-        }
-
-        if component_name in components and component_name in self.component_visibility:
-            self.component_visibility[component_name] = not self.component_visibility[
-                component_name
-            ]
-            components[component_name].set_visible(
-                self.component_visibility[component_name]
-            )
-
-            config_file = os.path.expanduser(
-                f"~/.config/{data.APP_NAME}/config/config.json"
-            )
-            if os.path.exists(config_file):
-                try:
-                    with open(config_file, "r") as f:
-                        config = json.load(f)
-
-                    config[f"bar_{component_name}_visible"] = self.component_visibility[
-                        component_name
-                    ]
-
-                    with open(config_file, "w") as f:
-                        json.dump(config, f, indent=4)
-                except Exception as e:
-                    print(f"Error updating config file: {e}")
-
-            return self.component_visibility[component_name]
-
-        return None
+        return False
 
     def on_button_enter(self, widget, event):
         window = widget.get_window()
@@ -617,3 +571,11 @@ class Bar(Window):
             self.workspaces_num.add_style_class("chinese")
         else:
             self.workspaces_num.remove_style_class("chinese")
+
+    # Эти функции больше не нужны в таком виде, но я оставлю их на случай,
+    # если они используются где-то еще, хотя они больше не будут работать
+    # для начальной установки видимости.
+    def apply_component_props(self):
+        pass
+    def toggle_component_visibility(self, component_name):
+        pass

@@ -16,21 +16,22 @@ let
     bar_workspace_show_number = settings.bar.workspace.showNumber;
     bar_workspace_use_chinese_numerals = settings.bar.workspace.useChineseNumerals;
     bar_hide_special_workspace = settings.bar.workspace.hideSpecial;
-    bar_metrics_disks = settings.bar.metrics.disks;
-    bar_button_apps_visible = settings.bar.components.appsButton;
+
+    bar_button_apps_visible = settings.bar.components.button_apps;
     bar_systray_visible = settings.bar.components.systray;
     bar_control_visible = settings.bar.components.control;
     bar_network_visible = settings.bar.components.network;
-    bar_button_tools_visible = settings.bar.components.toolsButton;
-    bar_sysprofiles_visible = settings.bar.components.systemProfiles;
-    bar_button_overview_visible = settings.bar.components.overviewButton;
-    bar_ws_container_visible = settings.bar.components.workspaces;
+    bar_button_tools_visible = settings.bar.components.button_tools;
+    bar_sysprofiles_visible = settings.bar.components.sysprofiles;
+    bar_button_overview_visible = settings.bar.components.button_overview;
+    bar_ws_container_visible = settings.bar.components.ws_container;
     bar_weather_visible = settings.bar.components.weather;
     bar_battery_visible = settings.bar.components.battery;
     bar_metrics_visible = settings.bar.components.metrics;
     bar_language_visible = settings.bar.components.language;
-    bar_date_time_visible = settings.bar.components.dateTime;
-    bar_button_power_visible = settings.bar.components.powerButton;
+    bar_date_time_visible = settings.bar.components.date_time;
+    bar_button_power_visible = settings.bar.components.button_power;
+
     dock_enabled = settings.dock.enable;
     dock_always_occluded = settings.dock.alwaysOccluded;
     dock_icon_size = settings.dock.iconSize;

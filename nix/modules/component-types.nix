@@ -1,16 +1,16 @@
 {
-  appsButton = true;
+  button_apps = true;
   systray = true;
   control = true;
   network = true;
-  toolsButton = true;
-  systemProfiles = true;
-  overviewButton = true;
-  workspaces = true;
+  button_tools = true;
+  sysprofiles = true;
+  button_overview = true;
+  ws_container = true;
   weather = true;
   battery = true;
   metrics = true;
   language = true;
-  dateTime = true;
-  powerButton = true;
+  date_time = true;
+  button_power = true;
 }
