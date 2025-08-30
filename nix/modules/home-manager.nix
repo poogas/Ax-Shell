@@ -52,17 +52,17 @@ in
       type = types.package;
       default = pkgs.ax-shell;
       defaultText = literalExpression "pkgs.ax-shell";
-      description = "Какой пакет Ax-Shell использовать.";
+      description = "The Ax-Shell package to use.";
     };
 
     autostart = {
-      enable = mkEnableOption "автозапуск Ax-Shell вместе с Hyprland" // {
+      enable = mkEnableOption "autostart Ax-Shell with Hyprland" // {
         default = true;
       };
       logPath = mkOption {
         type = types.str;
         default = "${config.xdg.stateHome}/ax-shell/main.log";
-        description = "Путь к файлу для логирования Ax-Shell.";
+        description = "Path to the log file for Ax-Shell.";
       };
     };
 
@@ -70,77 +70,79 @@ in
       wallpapersDir = mkOption {
         type = types.str;
         default = "${cfg.package}/share/ax-shell/assets/wallpapers_example";
-        description = "Путь к директории с обоями.";
+        description = "Path to the wallpapers directory.";
       };
       defaultWallpaper = mkOption {
         type = types.path;
         default = "${cfg.package}/share/ax-shell/assets/wallpapers_example/example-1.jpg";
-        description = "Путь к изображению, которое будет использоваться как обои по умолчанию.";
+        description = "Path to the image to be used as the default wallpaper.";
       };
       terminalCommand = mkOption {
         type = types.str;
         default = "kitty -e";
-        description = "Команда для запуска терминала.";
+        description = "The command to launch the terminal.";
       };
       datetime12hFormat = mkOption {
         type = types.bool;
         default = false;
-        description = "Использовать 12-часовой формат времени.";
+        description = "Whether to use the 12-hour time format.";
       };
       bar = {
         position = mkOption {
           type = types.enum [ "Top" "Bottom" "Left" "Right" ];
           default = "Top";
-          description = "Позиция основной панели.";
+          description = "The position of the main bar.";
         };
         centered = mkOption {
           type = types.bool;
           default = false;
-          description = "Центрировать ли компоненты на панели.";
+          description = "Whether to center the components on the bar.";
         };
         theme = mkOption {
           type = types.str;
           default = "Pills";
-          description = "Тема оформления панели.";
+          description = "The theme for the bar.";
         };
         workspace = {
-          showNumber = mkOption { type = types.bool; default = false; };
-          useChineseNumerals = mkOption { type = types.bool; default = false; };
-          hideSpecial = mkOption { type = types.bool; default = true; };
+          showNumber = mkOption { type = types.bool; default = false; description = "Show workspace number."; };
+          useChineseNumerals = mkOption { type = types.bool; default = false; description = "Use Chinese numerals for workspace numbers."; };
+          hideSpecial = mkOption { type = types.bool; default = true; description = "Hide special workspaces (e.g., scratchpads)."; };
         };
         metrics = {
           disks = mkOption {
             type = types.listOf types.str;
             default = [ "/" ];
-            description = "Список дисков для отображения в виджете метрик.";
+            description = "List of disks to display in the metrics widget.";
           };
         };
-        components = mkEnableOption "видимость компонентов на панели" // {
+        components = mkEnableOption "visibility of components on the bar" // {
           default = mapAttrs (_: _: true) (import ./component-types.nix);
           type = with types; attrsOf bool;
         };
       };
       dock = {
-        enable = mkOption { type = types.bool; default = true; };
-        alwaysOccluded = mkOption { type = types.bool; default = false; };
-        iconSize = mkOption { type = types.int; default = 28; };
-        theme = mkOption { type = types.str; default = "Pills"; };
+        enable = mkOption { type = types.bool; default = true; description = "Enable the dock."; };
+        alwaysOccluded = mkOption { type = types.bool; default = false; description = "Keep the dock below windows at all times."; };
+        iconSize = mkOption { type = types.int; default = 28; description = "The size of the icons in the dock."; };
+        theme = mkOption { type = types.str; default = "Pills"; description = "The theme for the dock."; };
       };
       panel = {
-        theme = mkOption { type = types.str; default = "Notch"; };
-        position = mkOption { type = types.str; default = "Center"; };
+        theme = mkOption { type = types.str; default = "Notch"; description = "The theme for the main panel (dashboard)."; };
+        position = mkOption { type = types.str; default = "Center"; description = "The position of the main panel."; };
       };
       notifications = {
-        position = mkOption { type = types.enum [ "Top" "Bottom" ]; default = "Top"; };
+        position = mkOption { type = types.enum [ "Top" "Bottom" ]; default = "Top"; description = "The position of notifications."; };
       };
       metrics = {
         main = mkOption {
           type = with types; attrsOf bool;
           default = { cpu = true; ram = true; disk = true; gpu = true; };
+          description = "Metrics to show in the main dashboard view.";
         };
         small = mkOption {
           type = with types; attrsOf bool;
           default = { cpu = true; ram = true; disk = true; gpu = true; };
+          description = "Metrics to show in the small bar widget.";
         };
       };
     };
