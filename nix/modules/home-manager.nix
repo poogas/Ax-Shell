@@ -163,7 +163,6 @@ in
     {
       home.packages = [
         wrappedPackage
-        pkgs.uwsm
         pkgs.swww
         pkgs.matugen
       ];
@@ -176,18 +175,17 @@ in
       wayland.windowManager.hyprland.settings = mkIf (hyprlandEnabled) (
         let
           uwsm-app = "${pkgs.uwsm}/bin/uwsm-app";
-          swww-daemon = "${pkgs.swww}/bin/swww-daemon";
-          # ax-shell = "${wrappedPackage}/bin/ax-shell &> ${cfg.autostart.logPath}";
-          ax-shell = ''
-            bash -c 'mkdir -p "$(dirname "${cfg.autostart.logPath}")" && exec ${wrappedPackage}/bin/ax-shell &> "${cfg.autostart.logPath}"'
+          swww-daemon = "swww-daemon";
+          ax-shell = pkgs.writeShellScriptBin "ax-shell-run" ''
+	    #!${pkgs.bash}/bin/bash
+            mkdir -p "$(dirname "${cfg.autostart.logPath}")"
+            exec ${wrappedPackage}/bin/ax-shell &> "${cfg.autostart.logPath}"
           '';
         in
         {
           exec-once = mkIf cfg.autostart.enable [
-            # "${uwsm-app} -- ${swww-daemon}"
-            # "${uwsm-app} -- ${ax-shell-run}"
-	    "swww-daemon"
-	    "${ax-shell}"
+            "${swww-daemon}"
+            "${uwsm-app} -- ${ax-shell}/bin/ax-shell-run"
           ];
         }
       );
