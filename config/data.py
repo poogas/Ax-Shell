@@ -43,7 +43,7 @@ BAR_THEME = "Pills"
 DOCK_THEME = "Pills"
 
 PANEL_THEME = "Notch"
-DATETIME_12H_FORMAT = False  # Default value if config file doesn't exist
+DATETIME_12H_FORMAT = False
 
 
 def load_config():
@@ -61,9 +61,9 @@ def load_config():
     return config
 
 
-if os.path.exists(CONFIG_FILE):
     with open(CONFIG_FILE, "r") as f:
         config = json.load(f)
+    
     WALLPAPERS_DIR = config.get("wallpapers_dir", WALLPAPERS_DIR_DEFAULT)
     BAR_POSITION = config.get("bar_position", "Top")
     VERTICAL = BAR_POSITION in ["Left", "Right"]
