@@ -266,6 +266,8 @@ in
         let
           uwsm-app = "${pkgs.uwsm}/bin/uwsm-app";
           swww-daemon = "swww-daemon";
+          swww-img = "${pkgs.swww}/bin/swww img";
+          wallpaper-link = "${config.xdg.configHome}/ax-shell/current.wall";
           ax-shell-runner = pkgs.writeShellScriptBin "ax-shell-run" ''
             #!${pkgs.bash}/bin/bash
             mkdir -p "$(dirname "${cfg.autostart.logPath}")"
@@ -273,6 +275,8 @@ in
           '';
         in [
           "${swww-daemon}"
+	  "sleep 1"
+	  "${swww-img} ${wallpaper-link}"
           "${uwsm-app} -- ${ax-shell-runner}/bin/ax-shell-run"
         ]
       else [];
@@ -288,7 +292,7 @@ in
 
       home.file."${config.xdg.configHome}/ax-shell/current.wall" = {
         source = cfg.settings.defaultWallpaper;
-        force = true;
+        force = false;
       };
 
       home.file."${config.xdg.configHome}/ax-shell/face.icon" = {
