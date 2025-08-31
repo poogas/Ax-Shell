@@ -168,6 +168,7 @@ in
         wrappedPackage
         pkgs.swww
         pkgs.matugen
+	pkgs.fabric-cli
       ];
 
       home.file."${config.xdg.configHome}/ax-shell/current.wall" = {
