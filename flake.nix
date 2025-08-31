@@ -81,8 +81,6 @@
         src = self;
 
         nativeBuildInputs = [ pkgs.makeWrapper ];
-        # buildInputs не нужен, т.к. мы явно указываем путь к python
-        # но лучше оставить для чистоты
         buildInputs = [ ax-shell-python ];
 
         installPhase = ''
@@ -90,10 +88,8 @@
           
           mkdir -p $out/bin
 
-          # Здесь мы создаем исполняемый файл-обертку $out/bin/ax-inhibit.
-          # Эта обертка будет вызывать правильный python-интерпретатор...
           makeWrapper ${ax-shell-python}/bin/python $out/bin/ax-inhibit \
-            --add-flags "$src/scripts/inhibit.py" # ...и передавать ему наш скрипт в качестве аргумента.
+            --add-flags "$src/scripts/inhibit.py"
           
           runHook postInstall;
         '';
@@ -159,6 +155,7 @@
       packages = {
         default = ax-shell-pkg;
         ax-shell = ax-shell-pkg;
+	fabric-cli = inputs.fabric-cli.packages.${system}.default;
       };
 
       apps.default = {
@@ -170,6 +167,7 @@
     // {
       overlays.default = final: prev: {
         ax-shell = self.packages.${prev.system}.ax-shell;
+        fabric-cli = self.packages.${prev.system}.fabric-cli;
       };
 
       homeManagerModules.default = import ./nix/modules/home-manager.nix;
