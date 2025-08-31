@@ -167,7 +167,11 @@ in
           description = "Metrics to show in the small bar widget.";
         };
       };
-
+      defaultFaceIcon = mkOption {
+        type = types.path;
+        default = "${cfg.package}/share/ax-shell/assets/default.png";
+        description = "Path to the default face icon to be used if ~/.face.icon does not exist.";
+      };
       keybindings = mkOption {
         type = with types; attrsOf (submodule {
           options = {
@@ -281,6 +285,12 @@ in
         source = cfg.settings.defaultWallpaper;
         force = true;
       };
+
+      home.file.".face.icon" = {
+	source = cfg.settings.defaultFaceIcon;
+        force = false;
+      };
+
       programs.ax-shell.hyprlandBinds = axShellBinds;
       programs.ax-shell.hyprlandExecOnce = axShellExecOnce;
     }
