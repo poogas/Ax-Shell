@@ -291,7 +291,7 @@ in
         force = true;
       };
 
-      home.file.".face.icon" = {
+      home.file."${config.xdg.configHome}/ax-shell/face.icon" = {
 	source = cfg.settings.defaultFaceIcon;
         force = false;
       };
