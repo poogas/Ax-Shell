@@ -199,6 +199,29 @@ class WallpaperSelector(Box):
         # Ensure the search entry gets focus when starting
         self.search_entry.grab_focus()
 
+    def _set_wallpaper_and_link(self, full_path: str):
+        if not os.path.exists(full_path):
+            print(f"Error: Wallpaper path does not exist: {full_path}")
+            return
+
+        selected_scheme = self.scheme_dropdown.get_active_id()
+        if self.matugen_switcher.get_active():
+            command = f'matugen image "{full_path}" -t {selected_scheme}'
+        else:
+            command = f'swww img "{full_path}" -t outer --transition-duration 1.5 --transition-step 255 --transition-fps 60 -f Nearest'
+
+        exec_shell_command_async(command)
+        print(f"Set wallpaper: {os.path.basename(full_path)}")
+
+        try:
+            if os.path.lexists(data.CURRENT_WALLPAPER_PATH):
+                os.remove(data.CURRENT_WALLPAPER_PATH)
+            os.symlink(full_path, data.CURRENT_WALLPAPER_PATH)
+            print(f"Updated wallpaper link to point to: {full_path}")
+        except Exception as e:
+            print(f"Error updating wallpaper link: {e}")
+        
+
     def randomize_dice_icon(self):
         dice_icons = [
             icons.dice_1,
@@ -220,20 +243,11 @@ class WallpaperSelector(Box):
 
         file_name = random.choice(self.files)
         full_path = os.path.join(data.WALLPAPERS_DIR, file_name)
-        selected_scheme = self.scheme_dropdown.get_active_id()
-
-        if self.matugen_switcher.get_active():
-            exec_shell_command_async(f'matugen image "{full_path}" -t {selected_scheme}')
-        else:
-            exec_shell_command_async(
-                f'swww img "{full_path}" -t outer --transition-duration 1.5 --transition-step 255 --transition-fps 60 -f Nearest'
-            )
-        
-        print(f"Set random wallpaper: {file_name}")
+        self._set_wallpaper_and_link(full_path)
 
         if external:
             exec_shell_command_async(f"notify-send '🎲 Wallpaper' 'Setting a random wallpaper 🎨' -a '{data.APP_NAME_CAP}' -i '{full_path}' -e")
-
+        
         self.randomize_dice_icon()
 
     def setup_file_monitor(self):
@@ -303,15 +317,7 @@ class WallpaperSelector(Box):
         model = iconview.get_model()
         file_name = model[path][1]
         full_path = os.path.join(data.WALLPAPERS_DIR, file_name)
-        selected_scheme = self.scheme_dropdown.get_active_id()
-        if self.matugen_switcher.get_active():
-            # Matugen is enabled: run the normal command.
-            exec_shell_command_async(f'matugen image "{full_path}" -t {selected_scheme}')
-        else:
-            # Matugen is disabled: run the alternative swww command.
-            exec_shell_command_async(
-                f'swww img "{full_path}" -t outer --transition-duration 1.5 --transition-step 255 --transition-fps 60 -f Nearest'
-            )
+        self._set_wallpaper_and_link(full_path)
 
     def on_scheme_changed(self, combo):
         selected_scheme = combo.get_active_id()
