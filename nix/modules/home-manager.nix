@@ -46,7 +46,7 @@ let
     panel_theme = settings.panel.theme;
     panel_position = settings.panel.position;
 
-    # Новые опции
+    corners_visible = settings.cornersVisible;
     notif_pos = settings.notifications.position;
     limited_apps_history = settings.notifications.limitedAppsHistory;
     history_ignored_apps = settings.notifications.historyIgnoredApps;
@@ -88,6 +88,11 @@ in
         type = types.path;
         default = "${cfg.package}/share/ax-shell/assets/wallpapers_example/example-1.jpg";
         description = "Path to the image to be used as the default wallpaper.";
+      };
+      cornersVisible = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Whether to show rounded corners on the screen edges.";
       };
       terminalCommand = mkOption {
         type = types.str;
