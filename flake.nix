@@ -95,6 +95,11 @@
         '';
       };
 
+      ax-send = pkgs.writeShellScriptBin "ax-send" ''
+        #!${pkgs.stdenv.shell}
+        exec ${inputs.fabric-cli.packages.${system}.default}/bin/fabric-cli exec ax-shell "from main import AxShellApp; app = AxShellApp.get_default(); app.run_command('$1')"
+      '';
+
       runtimeDeps = with pkgs; [
         adwaita-icon-theme
         papirus-icon-theme
@@ -141,6 +146,7 @@
         wl-clipboard
         wlinhibit
         ax-shell-inhibit-pkg
+	ax-send
       ];
 
       ax-shell-pkg = pkgs.callPackage ./default.nix {
@@ -156,6 +162,7 @@
         default = ax-shell-pkg;
         ax-shell = ax-shell-pkg;
 	fabric-cli = inputs.fabric-cli.packages.${system}.default;
+        ax-send = ax-send;
       };
 
       apps.default = {
@@ -168,6 +175,7 @@
       overlays.default = final: prev: {
         ax-shell = self.packages.${prev.system}.ax-shell;
         fabric-cli = self.packages.${prev.system}.fabric-cli;
+        ax-send = self.packages.${prev.system}.ax-send;
       };
 
       homeManagerModules.default = import ./nix/modules/home-manager.nix;
