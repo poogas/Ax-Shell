@@ -228,29 +228,28 @@ in
 
       kb = cfg.settings.keybindings;
 
-      get_app_and_call = method: "fabric-cli exec ax-shell \"from main import AxShellApp; app = AxShellApp.get_default(); app.${method}\"";
-
+      axSendCmd = "ax-send";
       reloadCmd = "killall ax-shell; ${pkgs.uwsm}/bin/uwsm-app -- ${pkgs.writeShellScriptBin "ax-shell-run" '' exec ${wrappedPackage}/bin/ax-shell &> \"${cfg.autostart.logPath}\"''}/bin/ax-shell-run";
 
       axShellBinds = [
         "${kb.restart.prefix}, ${kb.restart.suffix}, exec, ${reloadCmd}"
-        "${kb.axmsg.prefix}, ${kb.axmsg.suffix}, exec, notify-send 'Axenide' 'FIRE IN THE HOLE‼️🗣️🔥🕳️' -i '${cfg.package}/share/ax-shell/assets/ax.png' -a 'Source Code'"
-        "${kb.dash.prefix}, ${kb.dash.suffix}, exec, ${get_app_and_call "notch.open_notch('dashboard')"}"
-        "${kb.bluetooth.prefix}, ${kb.bluetooth.suffix}, exec, ${get_app_and_call "notch.open_notch('bluetooth')"}"
-        "${kb.pins.prefix}, ${kb.pins.suffix}, exec, ${get_app_and_call "notch.open_notch('pins')"}"
-        "${kb.kanban.prefix}, ${kb.kanban.suffix}, exec, ${get_app_and_call "notch.open_notch('kanban')"}"
-        "${kb.launcher.prefix}, ${kb.launcher.suffix}, exec, ${get_app_and_call "notch.open_notch('launcher')"}"
-        "${kb.tmux.prefix}, ${kb.tmux.suffix}, exec, ${get_app_and_call "notch.open_notch('tmux')"}"
-        "${kb.cliphist.prefix}, ${kb.cliphist.suffix}, exec, ${get_app_and_call "notch.open_notch('cliphist')"}"
-        "${kb.toolbox.prefix}, ${kb.toolbox.suffix}, exec, ${get_app_and_call "notch.open_notch('tools')"}"
-        "${kb.overview.prefix}, ${kb.overview.suffix}, exec, ${get_app_and_call "notch.open_notch('overview')"}"
-        "${kb.wallpapers.prefix}, ${kb.wallpapers.suffix}, exec, ${get_app_and_call "notch.open_notch('wallpapers')"}"
-        "${kb.mixer.prefix}, ${kb.mixer.suffix}, exec, ${get_app_and_call "notch.open_notch('mixer')"}"
-        "${kb.emoji.prefix}, ${kb.emoji.suffix}, exec, ${get_app_and_call "notch.open_notch('emoji')"}"
-        "${kb.power.prefix}, ${kb.power.suffix}, exec, ${get_app_and_call "notch.open_notch('power')"}"
-        "${kb.css.prefix}, ${kb.css.suffix}, exec, ${get_app_and_call "set_css()"}"
-        "${kb.randwall.prefix}, ${kb.randwall.suffix}, exec, ${get_app_and_call "notch.dashboard.wallpapers.set_random_wallpaper(None, external=True)"}"
-        "${kb.caffeine.prefix}, ${kb.caffeine.suffix}, exec, ${get_app_and_call "notch.dashboard.widgets.buttons.caffeine_button.toggle_inhibit(external=True)"}"
+        "${kb.axmsg.prefix}, ${kb.axmsg.suffix}, exec, notify-send '...'"
+        "${kb.dash.prefix}, ${kb.dash.suffix}, exec, ${axSendCmd} open_dashboard"
+        "${kb.bluetooth.prefix}, ${kb.bluetooth.suffix}, exec, ${axSendCmd} open_bluetooth"
+        "${kb.pins.prefix}, ${kb.pins.suffix}, exec, ${axSendCmd} open_pins"
+        "${kb.kanban.prefix}, ${kb.kanban.suffix}, exec, ${axSendCmd} open_kanban"
+        "${kb.launcher.prefix}, ${kb.launcher.suffix}, exec, ${axSendCmd} open_launcher"
+        "${kb.tmux.prefix}, ${kb.tmux.suffix}, exec, ${axSendCmd} open_tmux"
+        "${kb.cliphist.prefix}, ${kb.cliphist.suffix}, exec, ${axSendCmd} open_cliphist"
+        "${kb.toolbox.prefix}, ${kb.toolbox.suffix}, exec, ${axSendCmd} open_tools"
+        "${kb.overview.prefix}, ${kb.overview.suffix}, exec, ${axSendCmd} open_overview"
+        "${kb.wallpapers.prefix}, ${kb.wallpapers.suffix}, exec, ${axSendCmd} open_wallpapers"
+        "${kb.mixer.prefix}, ${kb.mixer.suffix}, exec, ${axSendCmd} open_mixer"
+        "${kb.emoji.prefix}, ${kb.emoji.suffix}, exec, ${axSendCmd} open_emoji"
+        "${kb.power.prefix}, ${kb.power.suffix}, exec, ${axSendCmd} open_power"
+        "${kb.css.prefix}, ${kb.css.suffix}, exec, ${axSendCmd} reload_css"
+        "${kb.randwall.prefix}, ${kb.randwall.suffix}, exec, ${axSendCmd} random_wallpaper"
+        "${kb.caffeine.prefix}, ${kb.caffeine.suffix}, exec, ${axSendCmd} toggle_caffeine"
         "${kb.restart_inspector.prefix}, ${kb.restart_inspector.suffix}, exec, GTK_DEBUG=interactive ${reloadCmd}"
       ];
 
@@ -275,7 +274,7 @@ in
         wrappedPackage
         pkgs.swww
         pkgs.matugen
-        pkgs.fabric-cli
+        pkgs.ax-send
       ];
 
       home.file."${config.xdg.configHome}/ax-shell/current.wall" = {

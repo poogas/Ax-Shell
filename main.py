@@ -49,6 +49,28 @@ class AxShellApp(Application):
         GLib.idle_add(run_updater)
         GLib.timeout_add(3600000, run_updater)
 
+    def run_command(self, command: str):
+        print(f"Received command: {command}")
+        match command:
+            case "open_dashboard": self.notch.open_notch("dashboard")
+            case "open_launcher": self.notch.open_notch("launcher")
+            case "open_bluetooth": self.notch.open_notch("bluetooth")
+            case "open_pins": self.notch.open_notch("pins")
+            case "open_kanban": self.notch.open_notch("kanban")
+            case "open_tmux": self.notch.open_notch("tmux")
+            case "open_cliphist": self.notch.open_notch("cliphist")
+            case "open_tools": self.notch.open_notch("tools")
+            case "open_overview": self.notch.open_notch("overview")
+            case "open_wallpapers": self.notch.open_notch("wallpapers")
+            case "open_mixer": self.notch.open_notch("mixer")
+            case "open_emoji": self.notch.open_notch("emoji")
+            case "open_power": self.notch.open_notch("power")
+            case "reload_css": self.set_css()
+            case "random_wallpaper": self.notch.dashboard.wallpapers.set_random_wallpaper(None, external=True)
+            case "toggle_caffeine": self.notch.dashboard.widgets.buttons.caffeine_button.toggle_inhibit(external=True)
+            case _:
+                print(f"Unknown command: {command}")
+
     def set_css(self):
         self.set_stylesheet_from_file(get_relative_path("main.css"))
 

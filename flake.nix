@@ -75,6 +75,7 @@
         ];
 
       ax-shell-python = pkgs.python312.withPackages ax-shell-python-packages;
+
       ax-shell-inhibit-pkg = pkgs.stdenv.mkDerivation {
         pname = "ax-shell-inhibit";
         version = "unstable-${self.shortRev or "dirty"}";
@@ -85,15 +86,22 @@
 
         installPhase = ''
           runHook preInstall;
-          
           mkdir -p $out/bin
-
           makeWrapper ${ax-shell-python}/bin/python $out/bin/ax-inhibit \
             --add-flags "$src/scripts/inhibit.py"
-          
           runHook postInstall;
         '';
       };
+
+      ax-send = pkgs.writeShellScriptBin "ax-send" ''
+        #!${pkgs.stdenv.shell}
+        PYTHON_CODE="
+        from main import AxShellApp
+        app = AxShellApp.get_default()
+        app.run_command('$1')
+        "
+        exec ${inputs.fabric-cli.packages.${system}.default}/bin/fabric-cli exec ax-shell "$PYTHON_CODE"
+      '';
 
       runtimeDeps = with pkgs; [
         adwaita-icon-theme
@@ -141,6 +149,7 @@
         wl-clipboard
         wlinhibit
         ax-shell-inhibit-pkg
+        ax-send
       ];
 
       ax-shell-pkg = pkgs.callPackage ./default.nix {
@@ -155,7 +164,8 @@
       packages = {
         default = ax-shell-pkg;
         ax-shell = ax-shell-pkg;
-	fabric-cli = inputs.fabric-cli.packages.${system}.default;
+        fabric-cli = inputs.fabric-cli.packages.${system}.default;
+        ax-send = ax-send;
       };
 
       apps.default = {
@@ -168,6 +178,7 @@
       overlays.default = final: prev: {
         ax-shell = self.packages.${prev.system}.ax-shell;
         fabric-cli = self.packages.${prev.system}.fabric-cli;
+        ax-send = self.packages.${prev.system}.ax-send;
       };
 
       homeManagerModules.default = import ./nix/modules/home-manager.nix;
