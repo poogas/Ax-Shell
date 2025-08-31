@@ -219,89 +219,137 @@ in
       readOnly = true;
       description = "The list of exec-once commands that Ax-Shell provides for Hyprland.";
     };
+    matugen = {
+      enable = mkEnableOption "Matugen integration for Ax-Shell";
+      scheme = mkOption {
+        type = types.enum [
+          "tonal-spot" "content" "expressive" "fidelity"
+          "fruit-salad" "monochrome" "neutral" "rainbow"
+        ];
+        default = "tonal-spot";
+        description = "The color scheme for Matugen to generate.";
+      };
+    };
   };
-
   config = mkIf cfg.enable (
-    let
-      wrappedPackage = pkgs.symlinkJoin {
-        name = "ax-shell-with-declarative-config";
-        paths = [ cfg.package ];
-        nativeBuildInputs = [ pkgs.makeWrapper ];
-        postBuild = ''
-          wrapProgram $out/bin/ax-shell \
-            --set AX_SHELL_CONFIG_FILE "${jsonConfigFile}"
+    lib.mkMerge [
+        (let
+          wrappedPackage = pkgs.symlinkJoin {
+            name = "ax-shell-with-declarative-config";
+            paths = [ cfg.package ];
+            nativeBuildInputs = [ pkgs.makeWrapper ];
+            postBuild = ''
+              wrapProgram $out/bin/ax-shell \
+                --set AX_SHELL_CONFIG_FILE "${jsonConfigFile}"
+            '';
+          };
+
+          jsonConfigFile = pkgs.writeText "ax-shell-config.json" (builtins.toJSON (formatJson cfg.settings));
+
+          kb = cfg.settings.keybindings;
+
+          axSendCmd = "ax-send";
+          reloadCmd = "killall ax-shell; ${pkgs.uwsm}/bin/uwsm-app -- ${pkgs.writeShellScriptBin "ax-shell-run" '' exec ${wrappedPackage}/bin/ax-shell &> \"${cfg.autostart.logPath}\"''}/bin/ax-shell-run";
+
+          axShellBinds = [
+            "${kb.restart.prefix}, ${kb.restart.suffix}, exec, ${reloadCmd}"
+            "${kb.axmsg.prefix}, ${kb.axmsg.suffix}, exec, notify-send 'Axenide' 'FIRE IN THE HOLE‼️🗣️🔥🕳️' -i '${cfg.package}/share/ax-shell/assets/ax.png' -a 'Source Code'"
+            "${kb.dash.prefix}, ${kb.dash.suffix}, exec, ${axSendCmd} open_dashboard"
+            "${kb.bluetooth.prefix}, ${kb.bluetooth.suffix}, exec, ${axSendCmd} open_bluetooth"
+            "${kb.pins.prefix}, ${kb.pins.suffix}, exec, ${axSendCmd} open_pins"
+            "${kb.kanban.prefix}, ${kb.kanban.suffix}, exec, ${axSendCmd} open_kanban"
+            "${kb.launcher.prefix}, ${kb.launcher.suffix}, exec, ${axSendCmd} open_launcher"
+            "${kb.tmux.prefix}, ${kb.tmux.suffix}, exec, ${axSendCmd} open_tmux"
+            "${kb.cliphist.prefix}, ${kb.cliphist.suffix}, exec, ${axSendCmd} open_cliphist"
+            "${kb.toolbox.prefix}, ${kb.toolbox.suffix}, exec, ${axSendCmd} open_tools"
+            "${kb.overview.prefix}, ${kb.overview.suffix}, exec, ${axSendCmd} open_overview"
+            "${kb.wallpapers.prefix}, ${kb.wallpapers.suffix}, exec, ${axSendCmd} open_wallpapers"
+            "${kb.mixer.prefix}, ${kb.mixer.suffix}, exec, ${axSendCmd} open_mixer"
+            "${kb.emoji.prefix}, ${kb.emoji.suffix}, exec, ${axSendCmd} open_emoji"
+            "${kb.power.prefix}, ${kb.power.suffix}, exec, ${axSendCmd} open_power"
+            "${kb.css.prefix}, ${kb.css.suffix}, exec, ${axSendCmd} reload_css"
+            "${kb.randwall.prefix}, ${kb.randwall.suffix}, exec, ${axSendCmd} random_wallpaper"
+            "${kb.caffeine.prefix}, ${kb.caffeine.suffix}, exec, ${axSendCmd} toggle_caffeine"
+            "${kb.restart_inspector.prefix}, ${kb.restart_inspector.suffix}, exec, GTK_DEBUG=interactive ${reloadCmd}"
+          ];
+
+          axShellExecOnce = if cfg.autostart.enable then
+            let
+              uwsm-app = "${pkgs.uwsm}/bin/uwsm-app";
+              swww-daemon = "${pkgs.swww}/bin/swww-daemon";
+              swww-img = "${pkgs.swww}/bin/swww img";
+              wallpaper-link = "${config.xdg.configHome}/ax-shell/current.wall";
+              ax-shell-runner = pkgs.writeShellScriptBin "ax-shell-run" ''
+                #!${pkgs.bash}/bin/bash
+                mkdir -p "$(dirname "${cfg.autostart.logPath}")"
+                exec ${wrappedPackage}/bin/ax-shell &> "${cfg.autostart.logPath}"
+              '';
+            in
+            [
+              "${swww-daemon}"
+              "sleep 1"
+            ]
+            ++ (lib.optional cfg.matugen.enable
+              "${pkgs.matugen}/bin/matugen image ${wallpaper-link} -t ${cfg.matugen.scheme}"
+            )
+            ++ (lib.optional (!cfg.matugen.enable)
+              "${pkgs.swww}/bin/swww img ${wallpaper-link}"
+            )
+            ++ [
+              "${uwsm-app} -- ${ax-shell-runner}/bin/ax-shell-run"
+            ]
+          else [];
+        in
+        {
+          home.packages = [
+            wrappedPackage
+            pkgs.swww
+            pkgs.matugen
+            pkgs.ax-send
+          ];
+
+          home.file."${config.xdg.configHome}/ax-shell/current.wall" = {
+            source = cfg.settings.defaultWallpaper;
+            force = false;
+          };
+
+          home.file."${config.xdg.configHome}/ax-shell/face.icon" = {
+            source = cfg.settings.defaultFaceIcon;
+            force = false;
+          };
+
+	  xdg.configFile."ax-shell/styles/.keep".text = "";
+
+          programs.ax-shell.hyprlandBinds = axShellBinds;
+          programs.ax-shell.hyprlandExecOnce = axShellExecOnce;
+        })
+
+      (mkIf cfg.matugen.enable {
+        xdg.configFile."matugen/config.toml".text = ''
+          [config.wallpaper]
+          command = "swww"
+          arguments = ["img", "-t", "fade", "--transition-duration", "0.5"]
+          set = true
+
+          [config.custom_colors]
+          red = { color = "#ff5370", blend = true }
+          green = { color = "#c3e88d", blend = true }
+          yellow = { color = "#ffcb6b", blend = true }
+          blue = { color = "#82aaff", blend = true }
+          magenta = { color = "#c792ea", blend = true }
+          cyan = { color = "#89ddff", blend = true }
+          white = { color = "#eeffff", blend = true }
+
+          [templates.hyprland]
+          input_path = "${cfg.package}/share/ax-shell/config/matugen/templates/hyprland-colors.conf"
+          output_path = "${config.xdg.configHome}/hypr/colors.conf"
+
+          [templates.ax-shell]
+          input_path = "${cfg.package}/share/ax-shell/config/matugen/templates/ax-shell.css"
+          output_path = "${config.xdg.configHome}/ax-shell/styles/colors.css"
+          post_hook = "${pkgs.ax-send}/bin/ax-send reload_css"
         '';
-      };
-
-      jsonConfigFile = pkgs.writeText "ax-shell-config.json" (builtins.toJSON (formatJson cfg.settings));
-
-      kb = cfg.settings.keybindings;
-
-      axSendCmd = "ax-send";
-      reloadCmd = "killall ax-shell; ${pkgs.uwsm}/bin/uwsm-app -- ${pkgs.writeShellScriptBin "ax-shell-run" '' exec ${wrappedPackage}/bin/ax-shell &> \"${cfg.autostart.logPath}\"''}/bin/ax-shell-run";
-
-      axShellBinds = [
-        "${kb.restart.prefix}, ${kb.restart.suffix}, exec, ${reloadCmd}"
-        "${kb.axmsg.prefix}, ${kb.axmsg.suffix}, exec, notify-send '...'"
-        "${kb.dash.prefix}, ${kb.dash.suffix}, exec, ${axSendCmd} open_dashboard"
-        "${kb.bluetooth.prefix}, ${kb.bluetooth.suffix}, exec, ${axSendCmd} open_bluetooth"
-        "${kb.pins.prefix}, ${kb.pins.suffix}, exec, ${axSendCmd} open_pins"
-        "${kb.kanban.prefix}, ${kb.kanban.suffix}, exec, ${axSendCmd} open_kanban"
-        "${kb.launcher.prefix}, ${kb.launcher.suffix}, exec, ${axSendCmd} open_launcher"
-        "${kb.tmux.prefix}, ${kb.tmux.suffix}, exec, ${axSendCmd} open_tmux"
-        "${kb.cliphist.prefix}, ${kb.cliphist.suffix}, exec, ${axSendCmd} open_cliphist"
-        "${kb.toolbox.prefix}, ${kb.toolbox.suffix}, exec, ${axSendCmd} open_tools"
-        "${kb.overview.prefix}, ${kb.overview.suffix}, exec, ${axSendCmd} open_overview"
-        "${kb.wallpapers.prefix}, ${kb.wallpapers.suffix}, exec, ${axSendCmd} open_wallpapers"
-        "${kb.mixer.prefix}, ${kb.mixer.suffix}, exec, ${axSendCmd} open_mixer"
-        "${kb.emoji.prefix}, ${kb.emoji.suffix}, exec, ${axSendCmd} open_emoji"
-        "${kb.power.prefix}, ${kb.power.suffix}, exec, ${axSendCmd} open_power"
-        "${kb.css.prefix}, ${kb.css.suffix}, exec, ${axSendCmd} reload_css"
-        "${kb.randwall.prefix}, ${kb.randwall.suffix}, exec, ${axSendCmd} random_wallpaper"
-        "${kb.caffeine.prefix}, ${kb.caffeine.suffix}, exec, ${axSendCmd} toggle_caffeine"
-        "${kb.restart_inspector.prefix}, ${kb.restart_inspector.suffix}, exec, GTK_DEBUG=interactive ${reloadCmd}"
-      ];
-
-      axShellExecOnce = if cfg.autostart.enable then
-        let
-          uwsm-app = "${pkgs.uwsm}/bin/uwsm-app";
-          swww-daemon = "swww-daemon";
-          swww-img = "${pkgs.swww}/bin/swww img";
-          wallpaper-link = "${config.xdg.configHome}/ax-shell/current.wall";
-          ax-shell-runner = pkgs.writeShellScriptBin "ax-shell-run" ''
-            #!${pkgs.bash}/bin/bash
-            mkdir -p "$(dirname "${cfg.autostart.logPath}")"
-            exec ${wrappedPackage}/bin/ax-shell &> "${cfg.autostart.logPath}"
-          '';
-        in [
-          "${swww-daemon}"
-	  "sleep 1"
-	  "${swww-img} ${wallpaper-link}"
-          "${uwsm-app} -- ${ax-shell-runner}/bin/ax-shell-run"
-        ]
-      else [];
-
-    in
-    {
-      home.packages = [
-        wrappedPackage
-        pkgs.swww
-        pkgs.matugen
-        pkgs.ax-send
-      ];
-
-      home.file."${config.xdg.configHome}/ax-shell/current.wall" = {
-        source = cfg.settings.defaultWallpaper;
-        force = false;
-      };
-
-      home.file."${config.xdg.configHome}/ax-shell/face.icon" = {
-	source = cfg.settings.defaultFaceIcon;
-        force = false;
-      };
-
-      programs.ax-shell.hyprlandBinds = axShellBinds;
-      programs.ax-shell.hyprlandExecOnce = axShellExecOnce;
-    }
+      })
+    ]
   );
 }
