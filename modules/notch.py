@@ -301,20 +301,14 @@ class Notch(Window):
             name="notch-corner-left",
             orientation="v",
             h_align="start",
-            children=[
-                MyCorner("top-right"),
-                Box(),
-            ],
+            children=[MyCorner("top-right")],
         )
 
         self.corner_right = Box(
             name="notch-corner-right",
             orientation="v",
             h_align="end",
-            children=[
-                MyCorner("top-left"),
-                Box(),
-            ],
+            children=[MyCorner("top-left")],
         )
 
         self.notch_box = CenterBox(
@@ -337,66 +331,50 @@ class Notch(Window):
             child=self.notch_box,
         )
 
-        self.notch_hover_area_event_box = Gtk.EventBox()
-        self.notch_hover_area_event_box.add(self.notch_revealer)
         if data.PANEL_THEME == "Notch":
-            self.notch_hover_area_event_box.connect(
+            self.notch_revealer.connect(
                 "enter-notify-event", self.on_notch_hover_area_enter
             )
-            self.notch_hover_area_event_box.connect(
+            self.notch_revealer.connect(
                 "leave-notify-event", self.on_notch_hover_area_leave
             )
-        self.notch_hover_area_event_box.set_size_request(-1, 1)
+        
+        self.notch_revealer.set_size_request(-1, 1)
 
         self.notch_complete = Box(
             name="notch-complete",
             orientation="v" if is_panel_vertical else "h",
-            children=[
-                self.notch_hover_area_event_box,
-            ],
+            children=[self.notch_revealer],
         )
 
         self._is_notch_open = False
         self._scrolling = False
 
-        self.vert_comp_left = Box(name="vert-comp")
-        self.vert_comp_right = Box(name="vert-comp")
-
-        self.vert_comp = Box()
-
-        match data.BAR_POSITION:
-            case "Left":
-                self.vert_comp = self.vert_comp_right
-            case "Right":
-                self.vert_comp = self.vert_comp_left
-
-        match data.BAR_THEME:
-            case "Pills":
-                self.vert_comp.set_size_request(38, 0)
-            case "Dense":
-                self.vert_comp.set_size_request(50, 0)
-            case "Edge":
-                self.vert_comp.set_size_request(44, 0)
-            case _:
-                self.vert_comp.set_size_request(38, 0)
-
-        if is_panel_vertical:
-            self.vert_comp.set_size_request(1, 1)
-
-        self.vert_comp.set_sensitive(False)
-
-        self.notch_children = []
-
         if data.VERTICAL:
+            vert_comp_size = {
+                "Pills": 38,
+                "Dense": 50,
+                "Edge": 44,
+            }.get(data.BAR_THEME, 38)
+            
+            if is_panel_vertical:
+                vert_comp_size = 1
+                
+            self.vert_comp_left = Box(name="vert-comp")
+            self.vert_comp_left.set_size_request(vert_comp_size, 0)
+            self.vert_comp_left.set_sensitive(False)
+            
+            self.vert_comp_right = Box(name="vert-comp") 
+            self.vert_comp_right.set_size_request(vert_comp_size, 0)
+            self.vert_comp_right.set_sensitive(False)
+            
             self.notch_children = [
                 self.vert_comp_left,
                 self.notch_complete,
                 self.vert_comp_right,
             ]
         else:
-            self.notch_children = [
-                self.notch_complete,
-            ]
+            self.notch_children = [self.notch_complete]
 
         self.notch_wrap = Box(
             name="notch-wrap",
