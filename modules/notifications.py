@@ -17,7 +17,7 @@ from loguru import logger
 
 import config.data as data
 import modules.icons as icons
-from widgets.rounded_image import CustomImage
+from widgets.image import CustomImage
 from widgets.wayland import WaylandWindow as Window
 
 PERSISTENT_DIR = f"/tmp/{data.APP_NAME}/notifications"

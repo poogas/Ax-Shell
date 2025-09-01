@@ -309,7 +309,7 @@ class NightModeButton(Button):
           - If not running, start it and mark as 'Enabled'.
         """
         GLib.Thread.new("hyprsunset-toggle", self._toggle_hyprsunset_thread, None)
-    
+
     def _toggle_hyprsunset_thread(self, user_data):
         """Background thread to check and toggle hyprsunset without blocking UI."""
         try:
@@ -321,12 +321,12 @@ class NightModeButton(Button):
             exec_shell_command_async("hyprsunset -t 3500")
             GLib.idle_add(self.night_mode_status.set_label, "Enabled")
             GLib.idle_add(self._remove_disabled_style)
-    
+
     def _add_disabled_style(self):
         """Helper to add disabled style to all widgets."""
         for widget in self.widgets:
             widget.add_style_class("disabled")
-    
+
     def _remove_disabled_style(self):
         """Helper to remove disabled style from all widgets."""
         for widget in self.widgets:
@@ -337,7 +337,7 @@ class NightModeButton(Button):
         Update the button state based on whether hyprsunset is running.
         """
         GLib.Thread.new("hyprsunset-check", self._check_hyprsunset_thread, None)
-    
+
     def _check_hyprsunset_thread(self, user_data):
         """Background thread to check hyprsunset status without blocking UI."""
         try:
@@ -396,34 +396,48 @@ class CaffeineButton(Button):
           - If running, kill it and mark as 'Disabled' (add 'disabled' class).
           - If not running, start it and mark as 'Enabled' (remove 'disabled' class).
         """
+        GLib.Thread.new("caffeine-toggle", self._toggle_inhibit_thread, external)
 
+    def _toggle_inhibit_thread(self, external):
+        """Background thread to toggle inhibit without blocking UI."""
         try:
             subprocess.check_output(["pgrep", "ax-inhibit"])
             exec_shell_command_async("pkill ax-inhibit")
-            self.caffeine_status.set_label("Disabled")
-            for i in self.widgets:
-                i.add_style_class("disabled")
+            GLib.idle_add(self.caffeine_status.set_label, "Disabled")
+            GLib.idle_add(self._add_disabled_style)
         except subprocess.CalledProcessError:
-            exec_shell_command_async("ax-inhibit")
-            self.caffeine_status.set_label("Enabled")
-            for i in self.widgets:
-                i.remove_style_class("disabled")
+            exec_shell_command_async(f"python {data.HOME_DIR}/.config/{data.APP_NAME_CAP}/scripts/inhibit.py")
+            GLib.idle_add(self.caffeine_status.set_label, "Enabled")
+            GLib.idle_add(self._remove_disabled_style)
 
         if external:
             # Different if enabled or disabled
-            message = "Disabled 💤" if self.caffeine_status.get_label() == "Disabled" else "Enabled ☀️"
+            status = "Disabled" if self.caffeine_status.get_label() == "Disabled" else "Enabled"
+            message = "Disabled 💤" if status == "Disabled" else "Enabled ☀️"
             exec_shell_command_async(f"notify-send '☕ Caffeine' '{message}' -a '{data.APP_NAME_CAP}' -e")
 
+    def _add_disabled_style(self):
+        """Helper to add disabled style to all widgets."""
+        for widget in self.widgets:
+            widget.add_style_class("disabled")
+
+    def _remove_disabled_style(self):
+        """Helper to remove disabled style from all widgets."""
+        for widget in self.widgets:
+            widget.remove_style_class("disabled")
+
     def check_inhibit(self, *args):
+        GLib.Thread.new("caffeine-check", self._check_inhibit_thread, None)
+
+    def _check_inhibit_thread(self, user_data):
+        """Background thread to check inhibit status without blocking UI."""
         try:
             subprocess.check_output(["pgrep", "ax-inhibit"])
-            self.caffeine_status.set_label("Enabled")
-            for i in self.widgets:
-                i.remove_style_class("disabled")
+            GLib.idle_add(self.caffeine_status.set_label, "Enabled")
+            GLib.idle_add(self._remove_disabled_style)
         except subprocess.CalledProcessError:
-            self.caffeine_status.set_label("Disabled")
-            for i in self.widgets:
-                i.add_style_class("disabled")
+            GLib.idle_add(self.caffeine_status.set_label, "Disabled")
+            GLib.idle_add(self._add_disabled_style)
 
 class Buttons(Gtk.Grid):
     def __init__(self, **kwargs):

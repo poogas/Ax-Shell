@@ -40,66 +40,40 @@ class UPowerManager():
         battery_proxy = self.bus.get_object(self.UPOWER_NAME, battery)
         battery_proxy_interface = dbus.Interface(battery_proxy, self.DBUS_PROPERTIES)
 
-        hasHistory = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "HasHistory")
-        hasStatistics = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "HasStatistics")
-        isPresent = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "IsPresent")
-        isRechargable = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "IsRechargeable")
-        online = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "Online")
-        powersupply = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "PowerSupply")
-        capacity = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "Capacity")
-        energy = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "Energy")
-        energyempty = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "EnergyEmpty")
-        energyfull = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "EnergyFull")
-        energyfulldesign = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "EnergyFullDesign")
-        energyrate = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "EnergyRate")
-        luminosity = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "Luminosity")
-        percentage = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "Percentage")
-        temperature = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "Temperature")
-        voltage = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "Voltage")
-        timetoempty = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "TimeToEmpty")
-        timetofull = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "TimeToFull")
-        iconname = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "IconName")
-        model = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "Model")
-        nativepath = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "NativePath")
-        serial = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "Serial")
-        vendor = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "Vendor")
-        state = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "State")
-        technology = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "Technology")
-        battype = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "Type")
-        warninglevel = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "WarningLevel")
-        updatetime = battery_proxy_interface.Get(self.UPOWER_NAME + ".Device", "UpdateTime")
-
-
+        # Use GetAll to retrieve all properties in a single DBus call
+        all_properties = battery_proxy_interface.GetAll(self.UPOWER_NAME + ".Device")
+        
+        # Extract properties with default values for missing keys
         information_table = {
-                'HasHistory': hasHistory,
-                'HasStatistics': hasStatistics,
-                'IsPresent': isPresent,
-                'IsRechargeable': isRechargable,
-                'Online': online,
-                'PowerSupply': powersupply,
-                'Capacity': capacity,
-                'Energy': energy,
-                'EnergyEmpty': energyempty,
-                'EnergyFull': energyfull,
-                'EnergyFullDesign': energyfulldesign,
-                'EnergyRate': energyrate,
-                'Luminosity': luminosity,
-                'Percentage': percentage,
-                'Temperature': temperature,
-                'Voltage': voltage,
-                'TimeToEmpty': timetoempty,
-                'TimeToFull': timetofull,
-                'IconName': iconname,
-                'Model': model,
-                'NativePath': nativepath,
-                'Serial': serial,
-                'Vendor': vendor,
-                'State': state,
-                'Technology': technology,
-                'Type': battype,
-                'WarningLevel': warninglevel,
-                'UpdateTime': updatetime
-                }
+            'HasHistory': all_properties.get('HasHistory', False),
+            'HasStatistics': all_properties.get('HasStatistics', False), 
+            'IsPresent': all_properties.get('IsPresent', False),
+            'IsRechargeable': all_properties.get('IsRechargeable', False),
+            'Online': all_properties.get('Online', False),
+            'PowerSupply': all_properties.get('PowerSupply', False),
+            'Capacity': all_properties.get('Capacity', 0.0),
+            'Energy': all_properties.get('Energy', 0.0),
+            'EnergyEmpty': all_properties.get('EnergyEmpty', 0.0),
+            'EnergyFull': all_properties.get('EnergyFull', 0.0),
+            'EnergyFullDesign': all_properties.get('EnergyFullDesign', 0.0),
+            'EnergyRate': all_properties.get('EnergyRate', 0.0),
+            'Luminosity': all_properties.get('Luminosity', 0.0),
+            'Percentage': all_properties.get('Percentage', 0.0),
+            'Temperature': all_properties.get('Temperature', 0.0),
+            'Voltage': all_properties.get('Voltage', 0.0),
+            'TimeToEmpty': all_properties.get('TimeToEmpty', 0),
+            'TimeToFull': all_properties.get('TimeToFull', 0),
+            'IconName': all_properties.get('IconName', ''),
+            'Model': all_properties.get('Model', ''),
+            'NativePath': all_properties.get('NativePath', ''),
+            'Serial': all_properties.get('Serial', ''),
+            'Vendor': all_properties.get('Vendor', ''),
+            'State': all_properties.get('State', 0),
+            'Technology': all_properties.get('Technology', 0),
+            'Type': all_properties.get('Type', 0),
+            'WarningLevel': all_properties.get('WarningLevel', 0),
+            'UpdateTime': all_properties.get('UpdateTime', 0)
+        }
 
         return information_table
 

@@ -234,24 +234,22 @@ class PlayerBox(Box):
         can_seek = hasattr(mp, "can_seek") and mp.can_seek
 
         if player_name == "firefox" or not can_seek:
-
+            # Firefox and non-seekable players don't support progress tracking
             self.backward.add_style_class("disabled")
             self.forward.add_style_class("disabled")
             self.progressbar.set_value(0.0)
             self.time.set_text("--:-- / --:--")
-
+            # Stop the timer since we can't track progress
             if self._progress_timer_id:
                 GLib.source_remove(self._progress_timer_id)
                 self._progress_timer_id = None
         else:
-
+            # Enable seeking controls
             self.backward.remove_style_class("disabled")
             self.forward.remove_style_class("disabled")
-
-            if not self._progress_timer_id:
-                self._progress_timer_id = GLib.timeout_add(1000, self._update_progress)
-
-            self._update_progress()
+            
+            # Use adaptive timer based on playback status instead of fixed 1-second polling
+            self._start_adaptive_progress_timer()
 
         if hasattr(mp, "can_go_previous") and mp.can_go_previous:
              self.prev.remove_style_class("disabled")
@@ -262,6 +260,20 @@ class PlayerBox(Box):
              self.next.remove_style_class("disabled")
         else:
              self.next.add_style_class("disabled")
+
+    def _start_adaptive_progress_timer(self):
+        """Start progress timer with adaptive interval based on playback status"""
+        if self._progress_timer_id:
+            GLib.source_remove(self._progress_timer_id)
+        
+        # Use longer intervals when paused to reduce CPU usage
+        if hasattr(self.mpris_player, 'playback_status') and self.mpris_player.playback_status == "playing":
+            interval = 1000  # 1 second when playing
+        else:
+            interval = 5000  # 5 seconds when paused/stopped
+            
+        self._progress_timer_id = GLib.timeout_add(interval, self._update_progress)
+        self._update_progress()  # Update immediately
 
     def _set_cover_image(self, image_path):
         if image_path and os.path.isfile(image_path):
@@ -378,11 +390,11 @@ class PlayerBox(Box):
             GLib.idle_add(self._apply_mpris_properties_debounced)
 
     def _apply_mpris_properties_debounced(self):
-
+        """Apply MPRIS properties with debouncing and restart adaptive timer"""
         if self.mpris_player:
             self._apply_mpris_properties()
         else:
-
+            # Clean up timer when player is removed
             if self._progress_timer_id:
                 GLib.source_remove(self._progress_timer_id)
                 self._progress_timer_id = None

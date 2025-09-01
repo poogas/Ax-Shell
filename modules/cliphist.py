@@ -260,36 +260,41 @@ class ClipHistory(Box):
         return button
 
     def _load_image_preview_async(self, item_id, button):
-        """Load image preview using GLib.idle_add instead of threads"""
-        def load_image():
-            try:
-                if item_id in self.image_cache:
-                    pixbuf = self.image_cache[item_id]
-                else:
-                    result = subprocess.run(
-                        ["cliphist", "decode", item_id],
-                        capture_output=True,
-                        check=True
-                    )
-                    loader = GdkPixbuf.PixbufLoader()
-                    loader.write(result.stdout)
-                    loader.close()
-                    pixbuf = loader.get_pixbuf()
-                    width, height = pixbuf.get_width(), pixbuf.get_height()
-                    max_size = 72
-                    if width > height:
-                        new_width = max_size
-                        new_height = int(height * (max_size / width))
-                    else:
-                        new_height = max_size
-                        new_width = int(width * (max_size / height))
-                    pixbuf = pixbuf.scale_simple(new_width, new_height, GdkPixbuf.InterpType.BILINEAR)
-                    self.image_cache[item_id] = pixbuf
-                self._update_image_button(button, pixbuf)
-            except Exception as e:
-                print(f"Error loading image preview: {e}", file=sys.stderr)
-            return False
-        GLib.idle_add(load_image)
+        """Load image preview asynchronously using background thread"""
+        GLib.Thread.new("image-preview", self._load_image_preview_thread, (item_id, button))
+
+    def _load_image_preview_thread(self, data):
+        """Background thread worker for loading image preview"""
+        item_id, button = data
+        try:
+            if item_id in self.image_cache:
+                pixbuf = self.image_cache[item_id]
+                GLib.idle_add(self._update_image_button, button, pixbuf)
+                return
+            
+            result = subprocess.run(
+                ["cliphist", "decode", item_id],
+                capture_output=True,
+                check=True
+            )
+            loader = GdkPixbuf.PixbufLoader()
+            loader.write(result.stdout)
+            loader.close()
+            pixbuf = loader.get_pixbuf()
+            width, height = pixbuf.get_width(), pixbuf.get_height()
+            max_size = 72
+            if width > height:
+                new_width = max_size
+                new_height = int(height * (max_size / width))
+            else:
+                new_height = max_size
+                new_width = int(width * (max_size / height))
+            pixbuf = pixbuf.scale_simple(new_width, new_height, GdkPixbuf.InterpType.BILINEAR)
+            self.image_cache[item_id] = pixbuf
+            
+            GLib.idle_add(self._update_image_button, button, pixbuf)
+        except Exception as e:
+            print(f"Error loading image preview: {e}", file=sys.stderr)
 
     def _update_image_button(self, button, pixbuf):
         """Update the button with the loaded image preview"""
@@ -340,53 +345,56 @@ class ClipHistory(Box):
         )
 
     def paste_item(self, item_id):
-        """Copy the selected item to the clipboard and close (GLib.idle_add)"""
-        def paste():
-            try:
-                result = subprocess.run(
-                    ["cliphist", "decode", item_id],
-                    capture_output=True,
-                    check=True
-                )
-                subprocess.run(
-                    ["wl-copy"],
-                    input=result.stdout,
-                    check=True
-                )
-                GLib.idle_add(self.close)
-            except subprocess.CalledProcessError as e:
-                print(f"Error pasting clipboard item: {e}", file=sys.stderr)
-            return False
-        GLib.idle_add(paste)
+        """Copy the selected item to the clipboard and close (async)"""
+        GLib.Thread.new("paste-item", self._paste_item_thread, item_id)
+
+    def _paste_item_thread(self, item_id):
+        """Background thread worker for pasting clipboard item"""
+        try:
+            result = subprocess.run(
+                ["cliphist", "decode", item_id],
+                capture_output=True,
+                check=True
+            )
+            subprocess.run(
+                ["wl-copy"],
+                input=result.stdout,
+                check=True
+            )
+            GLib.idle_add(self.close)
+        except subprocess.CalledProcessError as e:
+            print(f"Error pasting clipboard item: {e}", file=sys.stderr)
 
     def delete_item(self, item_id):
-        """Delete the selected clipboard item (GLib.idle_add)"""
-        def delete():
-            try:
-                subprocess.run(
-                    ["cliphist", "delete", item_id],
-                    check=True
-                )
-                self._pending_updates = True
-                if not self._loading:
-                    GLib.idle_add(self._load_clipboard_items_thread)
-            except subprocess.CalledProcessError as e:
-                print(f"Error deleting clipboard item: {e}", file=sys.stderr)
-            return False
-        GLib.idle_add(delete)
+        """Delete the selected clipboard item (async)"""
+        GLib.Thread.new("delete-item", self._delete_item_thread, item_id)
+
+    def _delete_item_thread(self, item_id):
+        """Background thread worker for deleting clipboard item"""
+        try:
+            subprocess.run(
+                ["cliphist", "delete", item_id],
+                check=True
+            )
+            self._pending_updates = True
+            if not self._loading:
+                GLib.Thread.new("cliphist-loader", self._load_clipboard_items_thread, None)
+        except subprocess.CalledProcessError as e:
+            print(f"Error deleting clipboard item: {e}", file=sys.stderr)
 
     def clear_history(self):
-        """Clear all clipboard history (GLib.idle_add)"""
-        def clear():
-            try:
-                subprocess.run(["cliphist", "wipe"], check=True)
-                self._pending_updates = True
-                if not self._loading:
-                    GLib.idle_add(self._load_clipboard_items_thread)
-            except subprocess.CalledProcessError as e:
-                print(f"Error clearing clipboard history: {e}", file=sys.stderr)
-            return False
-        GLib.idle_add(clear)
+        """Clear all clipboard history (async)"""
+        GLib.Thread.new("clear-history", self._clear_history_thread, None)
+
+    def _clear_history_thread(self, user_data):
+        """Background thread worker for clearing clipboard history"""
+        try:
+            subprocess.run(["cliphist", "wipe"], check=True)
+            self._pending_updates = True
+            if not self._loading:
+                GLib.Thread.new("cliphist-loader", self._load_clipboard_items_thread, None)
+        except subprocess.CalledProcessError as e:
+            print(f"Error clearing clipboard history: {e}", file=sys.stderr)
 
     def filter_items(self, entry, *_):
         """Filter clipboard items based on search text"""
