@@ -199,9 +199,6 @@ class AppLauncher(Box):
         )
 
     def handle_arrange_complete(self, should_resize, query):
-        if should_resize:
-            self.resize_viewport()
-
         if query.strip() != "" and self.viewport.get_children():
             self.update_selection(0)
         return False
@@ -213,10 +210,9 @@ class AppLauncher(Box):
         return True
 
     def resize_viewport(self):
-        self.scrolled_window.set_min_content_width(
-            self.viewport.get_allocation().width
-        )
-        return False
+        # Removed set_min_content_width to prevent size retention issues
+        # when switching between modules in the notch stack
+        pass
 
     def bake_application_slot(self, app: DesktopApp, **kwargs) -> Button:
         button = Button(
