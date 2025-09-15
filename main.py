@@ -6,7 +6,7 @@ import setproctitle
 
 from fabric import Application
 from fabric.utils import get_relative_path
-from config.data import APP_NAME, CONFIG_FILE, CURRENT_WALLPAPER_PATH, load_config
+from config.data import APP_NAME, CONFIG_FILE, CURRENT_WALLPAPER_PATH, config
 from modules.bar import Bar
 from modules.corners import Corners
 from modules.dock import Dock
@@ -25,7 +25,7 @@ class AxShellApp(Application):
 
         self.ensure_config_file_exists()
         self.ensure_current_wallpaper_exists()
-        self.config = load_config()
+        self.config = config
 
         self.corners = Corners()
         self.bar = Bar()
