@@ -3,11 +3,9 @@ import os
 import gi
 
 gi.require_version("Gtk", "3.0")
-from fabric.utils.helpers import get_relative_path
 from gi.repository import Gdk, GLib
 
-APP_NAME = "ax-shell"
-APP_NAME_CAP = "Ax-Shell"
+from .settings_constants import DEFAULTS, APP_NAME, APP_NAME_CAP
 
 HOME_DIR = os.path.expanduser("~")
 CACHE_DIR = os.path.join(GLib.get_user_cache_dir(), APP_NAME)
@@ -25,8 +23,6 @@ HOSTNAME = os.uname().nodename
 screen = Gdk.Screen.get_default()
 CURRENT_WIDTH = screen.get_width()
 CURRENT_HEIGHT = screen.get_height()
-
-from .settings_constants import DEFAULTS
 
 def load_config_file():
     if not os.path.exists(CONFIG_FILE):
