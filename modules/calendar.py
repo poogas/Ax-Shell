@@ -109,6 +109,11 @@ class Calendar(Gtk.Box):
             self.first_weekday = new_first_weekday
             # Clear cache and refresh calendar with new locale settings
             self.month_views.clear()
+            # Remove all current stack children to force regeneration
+            for child in self.stack.get_children():
+                self.stack.remove(child)
+            # Update header (which includes weekday labels) and calendar
+            self.update_header()
             self.update_calendar()
         return False  # Don't repeat this idle callback
 
