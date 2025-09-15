@@ -1,6 +1,5 @@
 import json
 import os
-
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -10,70 +9,37 @@ from gi.repository import Gdk, GLib
 APP_NAME = "ax-shell"
 APP_NAME_CAP = "Ax-Shell"
 
-
-PANEL_POSITION_KEY = "panel_position"
-PANEL_POSITION_DEFAULT = "Center"
-NOTIF_POS_KEY = "notif_pos"
-NOTIF_POS_DEFAULT = "Top"
-
-CACHE_DIR = str(GLib.get_user_cache_dir()) + f"/{APP_NAME}"
-
-USERNAME = os.getlogin()
-HOSTNAME = os.uname().nodename
 HOME_DIR = os.path.expanduser("~")
-
-XDG_CONFIG_HOME = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
-XDG_STATE_HOME = os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state"))
+CACHE_DIR = os.path.join(GLib.get_user_cache_dir(), APP_NAME)
+XDG_CONFIG_HOME = os.environ.get("XDG_CONFIG_HOME", os.path.join(HOME_DIR, ".config"))
+XDG_STATE_HOME = os.environ.get("XDG_STATE_HOME", os.path.join(HOME_DIR, ".local/state"))
 STATE_DIR = os.path.join(XDG_STATE_HOME, APP_NAME)
 os.makedirs(STATE_DIR, exist_ok=True)
 
+CONFIG_FILE = os.path.join(XDG_CONFIG_HOME, APP_NAME, "config.json")
+CURRENT_WALLPAPER_PATH = os.path.join(XDG_CONFIG_HOME, APP_NAME, "current.wall")
+MATUGEN_STATE_FILE = os.path.join(STATE_DIR, "matugen")
+
+USERNAME = os.getlogin()
+HOSTNAME = os.uname().nodename
 screen = Gdk.Screen.get_default()
 CURRENT_WIDTH = screen.get_width()
 CURRENT_HEIGHT = screen.get_height()
 
-CURRENT_WALLPAPER_PATH = os.path.join(XDG_CONFIG_HOME, "ax-shell/current.wall")
-WALLPAPERS_DIR_DEFAULT = os.environ.get("AX_SHELL_WALLPAPERS_DIR_DEFAULT", get_relative_path("../assets/wallpapers_example"))
-CONFIG_FILE = os.environ.get("AX_SHELL_CONFIG_FILE", get_relative_path("../config/config.json"))
-MATUGEN_STATE_FILE = os.path.join(STATE_DIR, "matugen")
-
-
-BAR_WORKSPACE_USE_CHINESE_NUMERALS = False
-BAR_THEME = "Pills"
-
-DOCK_THEME = "Pills"
-
-PANEL_THEME = "Notch"
-DATETIME_12H_FORMAT = False
-
-
-def load_config():
-    """Load the configuration from config.json"""
-    config_path = CONFIG_FILE
-    config = {}
-
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, "r") as f:
-                config = json.load(f)
-        except Exception as e:
-            print(f"Error loading config: {e}")
-
-    return config
-
-
-# Import defaults from settings_constants to avoid duplication
 from .settings_constants import DEFAULTS
 
-# Load configuration once and use throughout the module
-config = {}
-if os.path.exists(CONFIG_FILE):
+def load_config_file():
+    if not os.path.exists(CONFIG_FILE):
+        return {}
     try:
         with open(CONFIG_FILE, "r") as f:
-            config = json.load(f)
-    except Exception as e:
-        print(f"Error loading config file: {e}")
+            return json.load(f)
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"[ERROR] Failed to load or read {CONFIG_FILE}: {e}")
+        return {}
 
-# Set configuration values using defaults from settings_constants
+config = load_config_file()
+
 WALLPAPERS_DIR = config.get("wallpapers_dir", DEFAULTS["wallpapers_dir"])
 BAR_POSITION = config.get("bar_position", DEFAULTS["bar_position"])
 VERTICAL = BAR_POSITION in ["Left", "Right"]
@@ -89,27 +55,18 @@ BAR_HIDE_SPECIAL_WORKSPACE = config.get("bar_hide_special_workspace", DEFAULTS["
 BAR_THEME = config.get("bar_theme", DEFAULTS["bar_theme"])
 DOCK_THEME = config.get("dock_theme", DEFAULTS["dock_theme"])
 PANEL_THEME = config.get("panel_theme", DEFAULTS["panel_theme"])
-
-PANEL_POSITION = config.get(PANEL_POSITION_KEY, DEFAULTS[PANEL_POSITION_KEY])
-NOTIF_POS = config.get(NOTIF_POS_KEY, DEFAULTS[NOTIF_POS_KEY])
-
-BAR_COMPONENTS_VISIBILITY = {
-    "button_apps": config.get("bar_button_apps_visible", DEFAULTS["bar_button_apps_visible"]),
-    "systray": config.get("bar_systray_visible", DEFAULTS["bar_systray_visible"]),
-    "control": config.get("bar_control_visible", DEFAULTS["bar_control_visible"]),
-    "network": config.get("bar_network_visible", DEFAULTS["bar_network_visible"]),
-    "button_tools": config.get("bar_button_tools_visible", DEFAULTS["bar_button_tools_visible"]),
-    "sysprofiles": config.get("bar_sysprofiles_visible", DEFAULTS["bar_sysprofiles_visible"]),
-    "button_overview": config.get("bar_button_overview_visible", DEFAULTS["bar_button_overview_visible"]),
-    "ws_container": config.get("bar_ws_container_visible", DEFAULTS["bar_ws_container_visible"]),
-    "weather": config.get("bar_weather_visible", DEFAULTS["bar_weather_visible"]),
-    "battery": config.get("bar_battery_visible", DEFAULTS["bar_battery_visible"]),
-    "metrics": config.get("bar_metrics_visible", DEFAULTS["bar_metrics_visible"]),
-    "language": config.get("bar_language_visible", DEFAULTS["bar_language_visible"]),
-    "date_time": config.get("bar_date_time_visible", DEFAULTS["bar_date_time_visible"]),
-    "button_power": config.get("bar_button_power_visible", DEFAULTS["bar_button_power_visible"]),
-}
+PANEL_POSITION = config.get("panel_position", DEFAULTS["panel_position"])
+NOTIF_POS = config.get("notif_pos", DEFAULTS["notif_pos"])
 
 BAR_METRICS_DISKS = config.get("bar_metrics_disks", DEFAULTS["bar_metrics_disks"])
 METRICS_VISIBLE = config.get("metrics_visible", DEFAULTS["metrics_visible"])
 METRICS_SMALL_VISIBLE = config.get("metrics_small_visible", DEFAULTS["metrics_small_visible"])
+
+BAR_COMPONENTS_VISIBILITY = {
+    key: config.get(f"bar_{key}_visible", DEFAULTS.get(f"bar_{key}_visible", True))
+    for key in [
+        "button_apps", "systray", "control", "network", "button_tools",
+        "sysprofiles", "button_overview", "ws_container", "weather",
+        "battery", "metrics", "language", "date_time", "button_power"
+    ]
+}
