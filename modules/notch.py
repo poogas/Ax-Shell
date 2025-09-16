@@ -478,6 +478,12 @@ class Notch(Window):
         return False
 
     def close_notch(self):
+        def cleanup_after_animation():
+            self.stack.get_style_context().remove_class("collapsing")
+            return False
+
+        self.stack.get_style_context().add_class("collapsing")
+
         self.set_keyboard_mode("none")
         self.notch_box.remove_style_class("open")
         self.stack.remove_style_class("open")
@@ -489,6 +495,8 @@ class Notch(Window):
         self.stack.set_visible_child(self.compact)
         if data.PANEL_THEME != "Notch":
             self.notch_revealer.set_reveal_child(False)
+
+        GLib.timeout_add(300, cleanup_after_animation)
 
     def open_notch(self, widget_name: str):
         self.notch_revealer.set_reveal_child(True)
