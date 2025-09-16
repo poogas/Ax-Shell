@@ -12,7 +12,6 @@ from modules.corners import Corners
 from modules.dock import Dock
 from modules.notch import Notch
 from modules.notifications import NotificationPopup
-from modules.updater import run_updater
 
 class AxShellApp(Application):
     def __init__(self):
@@ -46,8 +45,6 @@ class AxShellApp(Application):
         corners_visible = self.config.get("corners_visible", True)
         self.corners.set_visible(corners_visible)
         self.set_css()
-        GLib.idle_add(run_updater)
-        GLib.timeout_add(3600000, run_updater)
 
     def run_command(self, command: str):
         print(f"Received command: {command}")

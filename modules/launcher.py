@@ -21,7 +21,6 @@ from gi.repository import Gdk, GLib
 import config.data as data
 import modules.icons as icons
 from modules.dock import Dock
-from modules.updater import run_updater
 from utils.conversion import Conversion
 
 tooltip_settings = f"<b>Open {data.APP_NAME_CAP} Settings</b>"
@@ -308,8 +307,6 @@ class AppLauncher(Box):
                 self.notch.open_notch("dashboard")
             case ":p":
                 self.notch.open_notch("power")
-            case ":update":
-                GLib.idle_add(lambda: run_updater(force=True))
             case _:
                 children = self.viewport.get_children()
                 if children:
