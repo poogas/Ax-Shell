@@ -158,4 +158,6 @@
   transition: none;
 }
 
-
+#notch-content.open #dashboard button {
+  transition: none;
+}
