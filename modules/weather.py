@@ -18,53 +18,55 @@ class Weather(Button):
         self.add(self.label)
         self.show_all()
         self.enabled = True
+        self.has_weather_data = False
         self.session = requests.Session()
-        GLib.timeout_add_seconds(600, self.fetch_weather)
-        self.fetch_weather()
+        
+        # Schedule the initial fetch and the start of the recurring timer.
+        GLib.timeout_add_seconds(3, self._initial_fetch_and_start_updates)
 
     def set_visible(self, visible):
         """Override to track external visibility setting"""
         self.enabled = visible
+        # Only show the widget if it's enabled AND we have valid weather data.
+        super().set_visible(self.enabled and self.has_weather_data)
 
-        if visible and hasattr(self, 'has_weather_data') and self.has_weather_data:
-            super().set_visible(True)
-        else:
-            super().set_visible(visible)
+    def _initial_fetch_and_start_updates(self):
+        # This function runs only ONCE, 3 seconds after startup.
+        self.fetch_weather() # Perform the first fetch.
+        # After the first fetch, start the main timer that repeats every 10 minutes.
+        GLib.timeout_add_seconds(600, self.fetch_weather)
+        # Return False to make this initial timer stop and not repeat.
+        return False
 
     def fetch_weather(self):
+        # This function is now used for all fetches (initial and recurring).
         GLib.Thread.new("weather-fetch", self._fetch_weather_thread, None)
+        # Return True so that when called by the 600s timer, it keeps repeating.
         return True
 
     def _fetch_weather_thread(self, user_data):
-
         url = "https://wttr.in/?format=%c+%t" if not data.VERTICAL else "https://wttr.in/?format=%c"
-
         tooltip_url = "https://wttr.in/?format=%l:+%C,+%t+(%f),+Humidity:+%h,+Wind:+%w"
         
         try:
-            response = self.session.get(url, timeout=5)
-            if response.ok:
-                weather_data = response.text.strip()
-                if "Unknown" in weather_data:
-                    self.has_weather_data = False
-                    GLib.idle_add(self.set_visible, False)
-                else:
-                    self.has_weather_data = True
+            response = self.session.get(url, timeout=10)
+            response.raise_for_status()
 
-                    tooltip_response = self.session.get(tooltip_url, timeout=5)
-                    if tooltip_response.ok:
-                        tooltip_text = tooltip_response.text.strip()
-                        GLib.idle_add(self.set_tooltip_text, tooltip_text)
-                    
-
-                    GLib.idle_add(self.set_visible, self.enabled)
-                    GLib.idle_add(self.label.set_label, weather_data.replace(" ", ""))
-            else:
+            weather_data = response.text.strip()
+            if "Unknown" in weather_data or "Sorry" in weather_data:
                 self.has_weather_data = False
-                GLib.idle_add(self.label.set_markup, f"{icons.cloud_off} Unavailable")
                 GLib.idle_add(self.set_visible, False)
-        except Exception as e:
-            self.has_weather_data = False
-            print(f"Error fetching weather: {e}")
-            GLib.idle_add(self.label.set_markup, f"{icons.cloud_off} Error")
-            GLib.idle_add(self.set_visible, False)
+            else:
+                self.has_weather_data = True
+                tooltip_response = self.session.get(tooltip_url, timeout=10)
+                if tooltip_response.ok:
+                    tooltip_text = tooltip_response.text.strip()
+                    GLib.idle_add(self.set_tooltip_text, tooltip_text)
+                
+                GLib.idle_add(self.label.set_label, weather_data.replace(" ", ""))
+                GLib.idle_add(self.set_visible, True)
+
+        except requests.exceptions.RequestException as e:
+            # On network error, just schedule a retry in 30 seconds.
+            logger.warning(f"Failed to fetch weather ({e}), retrying in 30 seconds.")
+            GLib.timeout_add_seconds(30, self.fetch_weather)

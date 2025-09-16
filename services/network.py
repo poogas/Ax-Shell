@@ -271,7 +271,7 @@ class NetworkClient(Service):
         )
 
     def _init_network_client(self, client: NM.Client, task: Gio.Task, **kwargs):
-        self._client = client
+        self._client = NM.Client.new_finish(task)
         wifi_device: NM.DeviceWifi | None = self._get_device(NM.DeviceType.WIFI)  # type: ignore
         ethernet_device: NM.DeviceEthernet | None = self._get_device(
             NM.DeviceType.ETHERNET
@@ -302,13 +302,16 @@ class NetworkClient(Service):
     def _get_primary_device(self) -> Literal["wifi", "wired"] | None:
         if not self._client:
             return None
+        connection = self._client.get_primary_connection()
+        if connection is None:
+            return None
         return (
             "wifi"
             if "wireless"
-            in str(self._client.get_primary_connection().get_connection_type())
+            in str(connection.get_connection_type())
             else "wired"
             if "ethernet"
-            in str(self._client.get_primary_connection().get_connection_type())
+            in str(connection.get_connection_type())
             else None
         )
 
