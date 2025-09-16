@@ -121,6 +121,11 @@
   border-radius: 36px;
 }
 
+#notch-content.open #notch-compact {
+  opacity: 0;
+  transition: none;
+}
+
 @keyframes fadeInAnimation {
   from {
     opacity: 0;
@@ -152,3 +157,5 @@
   opacity: 0;
   transition: none;
 }
+
+
