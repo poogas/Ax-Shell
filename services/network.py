@@ -9,8 +9,9 @@ from loguru import logger
 try:
     gi.require_version("NM", "1.0")
     from gi.repository import NM
-except ValueError:
+except (ValueError, ImportError):
     logger.error("Failed to start network manager")
+    NM = None
 
 
 class Wifi(Service):
@@ -48,19 +49,13 @@ class Wifi(Service):
     def ap_update(self):
         self.emit("changed")
         for sn in [
-            "enabled",
-            "internet",
-            "strength",
-            "frequency",
-            "access-points",
-            "ssid",
-            "state",
-            "icon-name",
+            "enabled", "internet", "strength", "frequency",
+            "access-points", "ssid", "state", "icon-name",
         ]:
             self.notify(sn)
 
     def _activate_ap(self):
-        if self._ap:
+        if self._ap and self._ap_signal is not None:
             self._ap.disconnect(self._ap_signal)
         self._ap = self._device.get_active_access_point()
         if not self._ap:
@@ -68,13 +63,10 @@ class Wifi(Service):
 
         self._ap_signal = self._ap.connect(
             "notify::strength", lambda *args: self.ap_update()
-        )  # type: ignore
+        )
 
     def toggle_wifi(self):
         self._client.wireless_set_enabled(not self._client.wireless_get_enabled())
-
-    # def set_active_ap(self, ap):
-    #     self._device.access
 
     def scan(self):
         self._device.request_scan_async(
@@ -91,7 +83,7 @@ class Wifi(Service):
         return
 
     @Property(bool, "read-write", default_value=False)
-    def enabled(self) -> bool:  # type: ignore
+    def enabled(self) -> bool:
         return bool(self._client.wireless_get_enabled())
 
     @enabled.setter
@@ -113,7 +105,7 @@ class Wifi(Service):
                 60: "network-wireless-signal-good-symbolic",
                 40: "network-wireless-signal-ok-symbolic",
                 20: "network-wireless-signal-weak-symbolic",
-                00: "network-wireless-signal-none-symbolic",
+                0: "network-wireless-signal-none-symbolic",
             }.get(
                 min(80, 20 * round(self._ap.get_strength() / 20)),
                 "network-wireless-no-route-symbolic",
@@ -127,15 +119,18 @@ class Wifi(Service):
     def frequency(self):
         return self._ap.get_frequency() if self._ap else -1
 
-    @Property(int, "readable")
+    @Property(str, "readable")
     def internet(self):
+        active_conn = self._device.get_active_connection()
+        if not active_conn:
+            return "deactivated"
         return {
             NM.ActiveConnectionState.ACTIVATED: "activated",
             NM.ActiveConnectionState.ACTIVATING: "activating",
             NM.ActiveConnectionState.DEACTIVATING: "deactivating",
             NM.ActiveConnectionState.DEACTIVATED: "deactivated",
         }.get(
-            self._device.get_active_connection().get_state(),
+            active_conn.get_state(),
             "unknown",
         )
 
@@ -146,7 +141,6 @@ class Wifi(Service):
         def make_ap_dict(ap: NM.AccessPoint):
             return {
                 "bssid": ap.get_bssid(),
-                # "address": ap.get_
                 "last_seen": ap.get_last_seen(),
                 "ssid": NM.utils_ssid_to_utf8(ap.get_ssid().get_data())
                 if ap.get_ssid()
@@ -159,7 +153,7 @@ class Wifi(Service):
                     60: "network-wireless-signal-good-symbolic",
                     40: "network-wireless-signal-ok-symbolic",
                     20: "network-wireless-signal-weak-symbolic",
-                    00: "network-wireless-signal-none-symbolic",
+                    0: "network-wireless-signal-none-symbolic",
                 }.get(
                     min(80, 20 * round(ap.get_strength() / 20)),
                     "network-wireless-no-route-symbolic",
@@ -172,10 +166,13 @@ class Wifi(Service):
     def ssid(self):
         if not self._ap:
             return "Disconnected"
-        ssid = self._ap.get_ssid().get_data()
+        ssid_obj = self._ap.get_ssid()
+        if not ssid_obj:
+            return "Unknown"
+        ssid = ssid_obj.get_data()
         return NM.utils_ssid_to_utf8(ssid) if ssid else "Unknown"
 
-    @Property(int, "readable")
+    @Property(str, "readable")
     def state(self):
         return {
             NM.DeviceState.UNMANAGED: "unmanaged",
@@ -208,13 +205,16 @@ class Ethernet(Service):
 
     @Property(str, "readable")
     def internet(self) -> str:
+        active_conn = self._device.get_active_connection()
+        if not active_conn:
+            return "disconnected"
         return {
             NM.ActiveConnectionState.ACTIVATED: "activated",
             NM.ActiveConnectionState.ACTIVATING: "activating",
             NM.ActiveConnectionState.DEACTIVATING: "deactivating",
             NM.ActiveConnectionState.DEACTIVATED: "deactivated",
         }.get(
-            self._device.get_active_connection().get_state(),
+            active_conn.get_state(),
             "disconnected",
         )
 
@@ -227,7 +227,7 @@ class Ethernet(Service):
         elif network == "activating":
             return "network-wired-acquiring-symbolic"
 
-        elif self._device.get_connectivity != NM.ConnectivityState.FULL:
+        elif self._device.get_connectivity(None) != NM.ConnectivityState.FULL:
             return "network-wired-no-route-symbolic"
 
         return "network-wired-disconnected-symbolic"
@@ -264,37 +264,47 @@ class NetworkClient(Service):
         self.wifi_device: Wifi | None = None
         self.ethernet_device: Ethernet | None = None
         super().__init__(**kwargs)
-        NM.Client.new_async(
-            cancellable=None,
-            callback=self._init_network_client,
-            **kwargs,
-        )
+        if NM:
+            NM.Client.new_async(
+                cancellable=None,
+                callback=self._init_network_client,
+            )
 
-    def _init_network_client(self, client: NM.Client, task: Gio.Task, **kwargs):
-        self._client = NM.Client.new_finish(task)
-        wifi_device: NM.DeviceWifi | None = self._get_device(NM.DeviceType.WIFI)  # type: ignore
-        ethernet_device: NM.DeviceEthernet | None = self._get_device(
-            NM.DeviceType.ETHERNET
-        )
+    def _init_network_client(self, source_object, task: Gio.Task):
+        try:
+            self._client = NM.Client.new_finish(task)
+            if not self._client:
+                logger.error("NetworkClient failed to initialize: NM.Client.new_finish() returned None.")
+                return
 
-        if wifi_device:
-            self.wifi_device = Wifi(self._client, wifi_device)
-            self.emit("device-ready")
+            self._client.connect("notify::primary-connection", self._on_primary_connection_changed)
+            self._client.connect("notify::devices", self._on_primary_connection_changed)
 
-        if ethernet_device:
-            self.ethernet_device = Ethernet(client=self._client, device=ethernet_device)
-            self.emit("device-ready")
+            wifi_device: NM.DeviceWifi | None = self._get_device(NM.DeviceType.WIFI)
+            ethernet_device: NM.DeviceEthernet | None = self._get_device(NM.DeviceType.ETHERNET)
 
-        self.notify("primary-device")
+            if wifi_device:
+                self.wifi_device = Wifi(self._client, wifi_device)
+            if ethernet_device:
+                self.ethernet_device = Ethernet(client=self._client, device=ethernet_device)
+            
+            if wifi_device or ethernet_device:
+                self.emit("device-ready")
+
+            self.notify("primary-device")
+            self.notify("primary_connection")
+        except Exception as e:
+            logger.error(f"NetworkClient failed during async initialization: {e}", exc_info=True)
 
     def _get_device(self, device_type) -> Any:
-        devices: List[NM.Device] = self._client.get_devices()  # type: ignore
+        if not self._client:
+            return None
+        devices: List[NM.Device] = self._client.get_devices()
         return next(
             (
                 x
                 for x in devices
                 if x.get_device_type() == device_type
-                and x.get_active_connection() is not None
             ),
             None,
         )
@@ -305,18 +315,18 @@ class NetworkClient(Service):
         connection = self._client.get_primary_connection()
         if connection is None:
             return None
-        return (
-            "wifi"
-            if "wireless"
-            in str(connection.get_connection_type())
-            else "wired"
-            if "ethernet"
-            in str(connection.get_connection_type())
-            else None
-        )
+        conn_type = connection.get_connection_type()
+        if "wireless" in conn_type:
+            return "wifi"
+        if "ethernet" in conn_type:
+            return "wired"
+        return None
+    
+    def _on_primary_connection_changed(self, *args):
+        self.notify("primary-device")
+        self.notify("primary_connection")
 
     def connect_wifi_bssid(self, bssid):
-        # We are using nmcli here, idk im lazy
         exec_shell_command_async(
             f"nmcli device wifi connect {bssid}", lambda *args: print(args)
         )
@@ -324,3 +334,9 @@ class NetworkClient(Service):
     @Property(str, "readable")
     def primary_device(self) -> Literal["wifi", "wired"] | None:
         return self._get_primary_device()
+
+    @Property(object, "readable")
+    def primary_connection(self) -> NM.Connection | None:
+        if not self._client:
+            return None
+        return self._client.get_primary_connection()
