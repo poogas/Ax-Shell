@@ -202,7 +202,6 @@ in
           emoji = { prefix = "SUPER"; suffix = "PERIOD"; };
           power = { prefix = "SUPER"; suffix = "ESCAPE"; };
           caffeine = { prefix = "SUPER SHIFT"; suffix = "M"; };
-          toggle = { prefix = "SUPER CTRL"; suffix = "B"; };
           css = { prefix = "SUPER SHIFT"; suffix = "B"; };
           restart_inspector = { prefix = "SUPER CTRL ALT"; suffix = "B"; };
         };
