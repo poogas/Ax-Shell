@@ -204,14 +204,17 @@ class WallpaperSelector(Box):
             print(f"Error: Wallpaper path does not exist: {full_path}")
             return
 
+        matugen_bin = os.getenv("AX_SHELL_MATUGEN_BIN", "matugen")
+
         selected_scheme = self.scheme_dropdown.get_active_id()
+
         if self.matugen_switcher.get_active():
-            command = f'matugen image "{full_path}" -t {selected_scheme}'
+            command = f"'{matugen_bin}' image '{full_path}' -t {selected_scheme}"
         else:
             command = f'swww img "{full_path}" -t outer --transition-duration 1.5 --transition-step 255 --transition-fps 60 -f Nearest'
 
         exec_shell_command_async(command)
-        print(f"Set wallpaper: {os.path.basename(full_path)}")
+        print(f"Executing wallpaper command: {command}")
 
         try:
             if os.path.lexists(data.CURRENT_WALLPAPER_PATH):
@@ -219,8 +222,7 @@ class WallpaperSelector(Box):
             os.symlink(full_path, data.CURRENT_WALLPAPER_PATH)
             print(f"Updated wallpaper link to point to: {full_path}")
         except Exception as e:
-            print(f"Error updating wallpaper link: {e}")
-        
+            print(f"Error updating wallpaper link: {e}")       
 
     def randomize_dice_icon(self):
         dice_icons = [
@@ -528,9 +530,10 @@ class WallpaperSelector(Box):
 
     def on_apply_color_clicked(self, button):
         """Applies the color selected by the hue slider via matugen."""
+        matugen_bin = os.getenv("AX_SHELL_MATUGEN_BIN", "matugen")
         hue_value = self.hue_slider.get_value() # Get value from 0-360
         hex_color = self.hsl_to_rgb_hex(hue_value) # Convert HSL(hue, 1.0, 0.5) to HEX
         print(f"Applying color from slider: H={hue_value}, HEX={hex_color}")
         selected_scheme = self.scheme_dropdown.get_active_id()
         # Run matugen with the chosen hex color and selected scheme
-        exec_shell_command_async(f'matugen color hex "{hex_color}" -t {selected_scheme}')
+        exec_shell_command_async(f"'{matugen_bin}' color hex '{hex_color}' -t {selected_scheme}")

@@ -5,6 +5,8 @@ with lib;
 let
   cfg = config.programs.ax-shell;
 
+  matugenTOMLFormat = pkgs.formats.toml { };
+
   formatKeybindings = keybindings:
     let
       prefixes = mapAttrs' (name: value: nameValuePair "prefix_${name}" value.prefix) keybindings;
@@ -23,7 +25,6 @@ let
     bar_workspace_use_chinese_numerals = settings.bar.workspace.useChineseNumerals;
     bar_hide_special_workspace = settings.bar.workspace.hideSpecial;
     bar_metrics_disks = settings.bar.metrics.disks;
-
     bar_button_apps_visible = settings.bar.components.button_apps;
     bar_systray_visible = settings.bar.components.systray;
     bar_control_visible = settings.bar.components.control;
@@ -38,19 +39,16 @@ let
     bar_language_visible = settings.bar.components.language;
     bar_date_time_visible = settings.bar.components.date_time;
     bar_button_power_visible = settings.bar.components.button_power;
-
     dock_enabled = settings.dock.enable;
     dock_always_occluded = settings.dock.alwaysOccluded;
     dock_icon_size = settings.dock.iconSize;
     dock_theme = settings.dock.theme;
     panel_theme = settings.panel.theme;
     panel_position = settings.panel.position;
-
     corners_visible = settings.cornersVisible;
     notif_pos = settings.notifications.position;
     limited_apps_history = settings.notifications.limitedAppsHistory;
     history_ignored_apps = settings.notifications.historyIgnoredApps;
-
     metrics_visible = settings.metrics.main;
     metrics_small_visible = settings.metrics.small;
   } // (formatKeybindings cfg.settings.keybindings);
@@ -75,6 +73,46 @@ in
         type = types.str;
         default = "${config.xdg.stateHome}/ax-shell/main.log";
         description = "Path to the log file for Ax-Shell.";
+      };
+    };
+
+    matugen = {
+      enable = mkEnableOption "matugen integration for Ax-Shell" // {
+        default = true;
+      };
+      settings = mkOption {
+        type = matugenTOMLFormat.type;
+        description = "Declarative configuration for matugen's config.toml.";
+        default = {
+          config = {
+            reload_apps = true;
+            wallpaper = {
+              command = "swww";
+              arguments = [ "img" "-t" "fade" "--transition-duration" "0.5" "--transition-step" "255" "--transition-fps" "60" "-f" "Nearest" ];
+              set = true;
+            };
+            custom_colors = {
+              red = { color = "#FF0000"; blend = true; };
+              green = { color = "#00FF00"; blend = true; };
+              yellow = { color = "#FFFF00"; blend = true; };
+              blue = { color = "#0000FF"; blend = true; };
+              magenta = { color = "#FF00FF"; blend = true; };
+              cyan = { color = "#00FFFF"; blend = true; };
+              white = { color = "#FFFFFF"; blend = true; };
+            };
+          };
+          templates = {
+            hyprland = {
+              input_path = "${cfg.package}/share/ax-shell/config/matugen/templates/hyprland-colors.conf";
+              output_path = "${config.xdg.configHome}/ax-shell/config/hypr/colors.conf";
+            };
+            "ax-shell" = {
+              input_path = "${cfg.package}/share/ax-shell/config/matugen/templates/ax-shell.css";
+              output_path = "${config.xdg.configHome}/ax-shell/styles/colors.css";
+              post_hook = "${pkgs.ax-send}/bin/ax-send reload_css &";
+            };
+          };
+        };
       };
     };
 
@@ -121,9 +159,21 @@ in
           description = "The theme for the bar.";
         };
         workspace = {
-          showNumber = mkOption { type = types.bool; default = false; description = "Show workspace number."; };
-          useChineseNumerals = mkOption { type = types.bool; default = false; description = "Use Chinese numerals for workspace numbers."; };
-          hideSpecial = mkOption { type = types.bool; default = true; description = "Hide special workspaces (e.g., scratchpads)."; };
+          showNumber = mkOption {
+            type = types.bool;
+            default = false;
+            description = "Show workspace number.";
+          };
+          useChineseNumerals = mkOption {
+            type = types.bool;
+            default = false;
+            description = "Use Chinese numerals for workspace numbers.";
+          };
+          hideSpecial = mkOption {
+            type = types.bool;
+            default = true;
+            description = "Hide special workspaces (e.g., scratchpads).";
+          };
         };
         metrics = {
           disks = mkOption {
@@ -138,17 +188,45 @@ in
         };
       };
       dock = {
-        enable = mkOption { type = types.bool; default = true; description = "Enable the dock."; };
-        alwaysOccluded = mkOption { type = types.bool; default = false; description = "Keep the dock below windows at all times."; };
-        iconSize = mkOption { type = types.int; default = 28; description = "The size of the icons in the dock."; };
-        theme = mkOption { type = types.str; default = "Pills"; description = "The theme for the dock."; };
+        enable = mkOption {
+          type = types.bool;
+          default = true;
+          description = "Enable the dock.";
+        };
+        alwaysOccluded = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Keep the dock below windows at all times.";
+        };
+        iconSize = mkOption {
+          type = types.int;
+          default = 28;
+          description = "The size of the icons in the dock.";
+        };
+        theme = mkOption {
+          type = types.str;
+          default = "Pills";
+          description = "The theme for the dock.";
+        };
       };
       panel = {
-        theme = mkOption { type = types.str; default = "Notch"; description = "The theme for the main panel (dashboard)."; };
-        position = mkOption { type = types.str; default = "Center"; description = "The position of the main panel."; };
+        theme = mkOption {
+          type = types.str;
+          default = "Notch";
+          description = "The theme for the main panel (dashboard).";
+        };
+        position = mkOption {
+          type = types.str;
+          default = "Center";
+          description = "The position of the main panel.";
+        };
       };
       notifications = {
-        position = mkOption { type = types.enum [ "Top" "Bottom" ]; default = "Top"; description = "The position of notifications."; };
+        position = mkOption {
+          type = types.enum [ "Top" "Bottom" ];
+          default = "Top";
+          description = "The position of notifications.";
+        };
         limitedAppsHistory = mkOption {
           type = types.listOf types.str;
           default = [ "Spotify" ];
@@ -163,12 +241,22 @@ in
       metrics = {
         main = mkOption {
           type = with types; attrsOf bool;
-          default = { cpu = true; ram = true; disk = true; gpu = true; };
+          default = {
+            cpu = true;
+            ram = true;
+            disk = true;
+            gpu = true;
+          };
           description = "Metrics to show in the main dashboard view.";
         };
         small = mkOption {
           type = with types; attrsOf bool;
-          default = { cpu = true; ram = true; disk = true; gpu = true; };
+          default = {
+            cpu = true;
+            ram = true;
+            disk = true;
+            gpu = true;
+          };
           description = "Metrics to show in the small bar widget.";
         };
       };
@@ -218,48 +306,72 @@ in
       description = "The list of exec-once commands that Ax-Shell provides for Hyprland.";
     };
   };
+
   config = mkIf cfg.enable (
     let
+      jsonConfigFile = pkgs.writeText "ax-shell-config.json" (builtins.toJSON (formatJson cfg.settings));
+
+      generatedMainCss = pkgs.writeTextFile {
+        name = "main-generated.css";
+        text =
+          let
+            originalContent = builtins.readFile "${cfg.package}/share/ax-shell/main.css";
+            colorsCssPath = "${config.xdg.configHome}/ax-shell/styles/colors.css";
+            packageStylesPath = "${cfg.package}/share/ax-shell/styles";
+            absoluteColorsImport = ''@import url("${colorsCssPath}");'';
+            contentWithAbsolutePaths = lib.replaceStrings
+              (lib.mapAttrsToList (name: _: ''./styles/${name}'') (builtins.readDir packageStylesPath))
+              (lib.mapAttrsToList (name: _: ''${packageStylesPath}/${name}'') (builtins.readDir packageStylesPath))
+              originalContent;
+          in
+          "${absoluteColorsImport}\n${contentWithAbsolutePaths}";
+      };
+
       wrappedPackage = pkgs.symlinkJoin {
         name = "ax-shell-with-declarative-config";
         paths = [ cfg.package ];
         nativeBuildInputs = [ pkgs.makeWrapper ];
         postBuild = ''
           wrapProgram $out/bin/ax-shell \
-            --set AX_SHELL_CONFIG_FILE "${jsonConfigFile}"
+            --set AX_SHELL_CONFIG_FILE "${jsonConfigFile}" \
+            --set AX_SHELL_STYLESHEET_FILE "${generatedMainCss}" \
+            --set AX_SHELL_MATUGEN_BIN "${pkgs.matugen}/bin/matugen"
         '';
       };
 
-      jsonConfigFile = pkgs.writeText "ax-shell-config.json" (builtins.toJSON (formatJson cfg.settings));
-
       kb = cfg.settings.keybindings;
-      axSendCmd = "ax-send";
+      axSendCmd = "${pkgs.ax-send}/bin/ax-send";
 
       ax-shell-runner = pkgs.writeShellScriptBin "ax-shell-run" ''
         #!${pkgs.bash}/bin/bash
-
         mkdir -p "$(dirname "${cfg.autostart.logPath}")"
-
         exec ${wrappedPackage}/bin/ax-shell &> "${cfg.autostart.logPath}"
       '';
 
       reloadCmdScript = pkgs.writeShellApplication {
         name = "ax-shell-reload";
-        
         runtimeInputs = [ pkgs.procps pkgs.psmisc ];
-
         text = ''
           #!${pkgs.stdenv.shell}
-          
           killall ax-shell
-        
           while pgrep -x ax-shell >/dev/null; do
               sleep 0.1
           done
-
           ${pkgs.uwsm}/bin/uwsm-app -- ${ax-shell-runner}/bin/ax-shell-run
         '';
       };
+
+      initialThemeGenCmd = pkgs.writeShellScript "matugen-initial-gen" ''
+        HYPR_COLORS_PATH="${config.xdg.configHome}/ax-shell/config/hypr/colors.conf"
+        CSS_COLORS_PATH="${config.xdg.configHome}/ax-shell/styles/colors.css"
+
+        if [ ! -f "$HYPR_COLORS_PATH" ] || [ ! -f "$CSS_COLORS_PATH" ]; then
+          echo "Ax-Shell: Color scheme not found. Generating from default wallpaper."
+          mkdir -p "$(dirname "$HYPR_COLORS_PATH")"
+          mkdir -p "$(dirname "$CSS_COLORS_PATH")"
+          ${pkgs.matugen}/bin/matugen image "${cfg.settings.defaultWallpaper}"
+        fi
+      '';
 
       axShellBinds = [
         "${kb.restart.prefix}, ${kb.restart.suffix}, exec, ${reloadCmdScript}/bin/ax-shell-reload"
@@ -288,34 +400,39 @@ in
           swww-daemon = "swww-daemon";
           swww-img = "${pkgs.swww}/bin/swww img";
           wallpaper-link = "${config.xdg.configHome}/ax-shell/current.wall";
-        in [
+        in
+        [
           "${swww-daemon}"
           "sleep 1"
-          "${swww-img} ${wallpaper-link}"
+          (if cfg.matugen.enable then "${initialThemeGenCmd}" else "")
           "${uwsm-app} -- ${ax-shell-runner}/bin/ax-shell-run"
           "wl-paste --type text --watch cliphist store"
           "wl-paste --type image --watch cliphist store"
         ]
-      else [];
+      else
+        [ ];
 
     in
     {
       home.packages = [
         wrappedPackage
         pkgs.swww
-        pkgs.matugen
         pkgs.ax-send
         pkgs.wl-clipboard
         pkgs.cliphist
-      ];
+      ] ++ (if cfg.matugen.enable then [ pkgs.matugen ] else [ ]);
+
+      home.file."${config.xdg.configHome}/matugen/config.toml" = mkIf cfg.matugen.enable {
+        source = matugenTOMLFormat.generate "matugen-config.toml" cfg.matugen.settings;
+      };
 
       home.file."${config.xdg.configHome}/ax-shell/current.wall" = {
         source = cfg.settings.defaultWallpaper;
-        force = false;
+        force = true;
       };
 
       home.file."${config.xdg.configHome}/ax-shell/face.icon" = {
-	source = cfg.settings.defaultFaceIcon;
+        source = cfg.settings.defaultFaceIcon;
         force = false;
       };
 

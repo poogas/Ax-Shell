@@ -39,12 +39,12 @@ class AxShellApp(Application):
         self.add_window(self.dock)
         self.add_window(self.notification)
         self.add_window(self.corners)
+        self.set_css()
 
     def do_activate(self):
         super().do_activate()
         corners_visible = self.config.get("corners_visible", True)
         self.corners.set_visible(corners_visible)
-        self.set_css()
 
     def run_command(self, command: str):
         print(f"Received command: {command}")
@@ -69,7 +69,12 @@ class AxShellApp(Application):
                 print(f"Unknown command: {command}")
 
     def set_css(self):
-        self.set_stylesheet_from_file(get_relative_path("main.css"))
+        stylesheet_path = os.getenv("AX_SHELL_STYLESHEET_FILE")
+
+        if stylesheet_path and os.path.exists(stylesheet_path):
+            self.set_stylesheet_from_file(stylesheet_path)
+        else:
+            print(f"WARNING: Stylesheet file not found at path specified by AX_SHELL_STYLESHEET_FILE: {stylesheet_path}")
 
     def ensure_config_file_exists(self):
         if not os.path.isfile(CONFIG_FILE):
