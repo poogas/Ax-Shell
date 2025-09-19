@@ -220,7 +220,6 @@ in
       description = "The list of exec-once commands that Ax-Shell provides for Hyprland.";
     };
   };
-
   config = mkIf cfg.enable (
     let
       wrappedPackage = pkgs.symlinkJoin {
@@ -236,12 +235,36 @@ in
       jsonConfigFile = pkgs.writeText "ax-shell-config.json" (builtins.toJSON (formatJson cfg.settings));
 
       kb = cfg.settings.keybindings;
-
       axSendCmd = "ax-send";
-      reloadCmd = "killall ax-shell; ${pkgs.uwsm}/bin/uwsm-app -- ${pkgs.writeShellScriptBin "ax-shell-run" '' exec ${wrappedPackage}/bin/ax-shell &> \"${cfg.autostart.logPath}\"''}/bin/ax-shell-run";
+
+      ax-shell-runner = pkgs.writeShellScriptBin "ax-shell-run" ''
+        #!${pkgs.bash}/bin/bash
+
+        mkdir -p "$(dirname "${cfg.autostart.logPath}")"
+
+        exec ${wrappedPackage}/bin/ax-shell &> "${cfg.autostart.logPath}"
+      '';
+
+      reloadCmdScript = pkgs.writeShellApplication {
+        name = "ax-shell-reload";
+        
+        runtimeInputs = [ pkgs.procps pkgs.psmisc ];
+
+        text = ''
+          #!${pkgs.stdenv.shell}
+          
+          killall ax-shell
+        
+          while pgrep -x ax-shell >/dev/null; do
+              sleep 0.1
+          done
+
+          ${pkgs.uwsm}/bin/uwsm-app -- ${ax-shell-runner}/bin/ax-shell-run
+        '';
+      };
 
       axShellBinds = [
-        "${kb.restart.prefix}, ${kb.restart.suffix}, exec, ${reloadCmd}"
+        "${kb.restart.prefix}, ${kb.restart.suffix}, exec, ${reloadCmdScript}/bin/ax-shell-reload"
         "${kb.axmsg.prefix}, ${kb.axmsg.suffix}, exec, notify-send '...'"
         "${kb.dash.prefix}, ${kb.dash.suffix}, exec, ${axSendCmd} open_dashboard"
         "${kb.bluetooth.prefix}, ${kb.bluetooth.suffix}, exec, ${axSendCmd} open_bluetooth"
@@ -259,7 +282,7 @@ in
         "${kb.css.prefix}, ${kb.css.suffix}, exec, ${axSendCmd} reload_css"
         "${kb.randwall.prefix}, ${kb.randwall.suffix}, exec, ${axSendCmd} random_wallpaper"
         "${kb.caffeine.prefix}, ${kb.caffeine.suffix}, exec, ${axSendCmd} toggle_caffeine"
-        "${kb.restart_inspector.prefix}, ${kb.restart_inspector.suffix}, exec, GTK_DEBUG=interactive ${reloadCmd}"
+        "${kb.restart_inspector.prefix}, ${kb.restart_inspector.suffix}, exec, GTK_DEBUG=interactive ${reloadCmdScript}/bin/ax-shell-reload"
       ];
 
       axShellExecOnce = if cfg.autostart.enable then
@@ -268,11 +291,6 @@ in
           swww-daemon = "swww-daemon";
           swww-img = "${pkgs.swww}/bin/swww img";
           wallpaper-link = "${config.xdg.configHome}/ax-shell/current.wall";
-          ax-shell-runner = pkgs.writeShellScriptBin "ax-shell-run" ''
-            #!${pkgs.bash}/bin/bash
-            mkdir -p "$(dirname "${cfg.autostart.logPath}")"
-            exec ${wrappedPackage}/bin/ax-shell &> "${cfg.autostart.logPath}"
-          '';
         in [
           "${swww-daemon}"
 	  "sleep 1"
