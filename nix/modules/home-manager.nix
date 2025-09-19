@@ -293,6 +293,8 @@ in
           "sleep 1"
           "${swww-img} ${wallpaper-link}"
           "${uwsm-app} -- ${ax-shell-runner}/bin/ax-shell-run"
+          "wl-paste --type text --watch cliphist store"
+          "wl-paste --type image --watch cliphist store"
         ]
       else [];
 
@@ -303,6 +305,8 @@ in
         pkgs.swww
         pkgs.matugen
         pkgs.ax-send
+        pkgs.wl-clipboard
+        pkgs.cliphist
       ];
 
       home.file."${config.xdg.configHome}/ax-shell/current.wall" = {
