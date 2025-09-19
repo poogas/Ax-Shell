@@ -290,8 +290,8 @@ in
           wallpaper-link = "${config.xdg.configHome}/ax-shell/current.wall";
         in [
           "${swww-daemon}"
-	  "sleep 1"
-	  "${swww-img} ${wallpaper-link}"
+          "sleep 1"
+          "${swww-img} ${wallpaper-link}"
           "${uwsm-app} -- ${ax-shell-runner}/bin/ax-shell-run"
         ]
       else [];
