@@ -202,7 +202,6 @@ in
           emoji = { prefix = "SUPER"; suffix = "PERIOD"; };
           power = { prefix = "SUPER"; suffix = "ESCAPE"; };
           caffeine = { prefix = "SUPER SHIFT"; suffix = "M"; };
-          css = { prefix = "SUPER SHIFT"; suffix = "B"; };
           restart_inspector = { prefix = "SUPER CTRL ALT"; suffix = "B"; };
         };
         description = "Keybindings for various Ax-Shell actions.";
@@ -278,7 +277,6 @@ in
         "${kb.mixer.prefix}, ${kb.mixer.suffix}, exec, ${axSendCmd} open_mixer"
         "${kb.emoji.prefix}, ${kb.emoji.suffix}, exec, ${axSendCmd} open_emoji"
         "${kb.power.prefix}, ${kb.power.suffix}, exec, ${axSendCmd} open_power"
-        "${kb.css.prefix}, ${kb.css.suffix}, exec, ${axSendCmd} reload_css"
         "${kb.randwall.prefix}, ${kb.randwall.suffix}, exec, ${axSendCmd} random_wallpaper"
         "${kb.caffeine.prefix}, ${kb.caffeine.suffix}, exec, ${axSendCmd} toggle_caffeine"
         "${kb.restart_inspector.prefix}, ${kb.restart_inspector.suffix}, exec, GTK_DEBUG=interactive ${reloadCmdScript}/bin/ax-shell-reload"
