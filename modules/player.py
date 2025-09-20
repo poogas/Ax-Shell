@@ -215,6 +215,12 @@ class PlayerBox(Box):
             self._wallpaper_monitor = monitor
 
     def _apply_mpris_properties(self):
+        if not self.mpris_player or not hasattr(self.mpris_player, '_player') or self.mpris_player._player is None:
+            if self._progress_timer_id:
+                GLib.source_remove(self._progress_timer_id)
+                self._progress_timer_id = None
+            return 
+
         mp = self.mpris_player
         self.title.set_visible(bool(mp.title and mp.title.strip()))
         if mp.title and mp.title.strip():
