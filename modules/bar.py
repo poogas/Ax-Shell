@@ -496,11 +496,11 @@ class Bar(Window):
 
         GLib.timeout_add(1200, self._reveal_on_load)
 
-        self.systray._update_visibility()
         self.chinese_numbers()
 
     def _reveal_on_load(self):
         self.show_all()
+        self.systray._update_visibility()
         self.bar_inner.get_style_context().add_class("visible")
         return False
 
