@@ -18,19 +18,10 @@
   color: var(--shadow);
 }
 
-#scheme-dropdown.box button.box.cellview {
-  background-color: var(--primary);
-}
-
-#scheme-dropdown.box button.box.cellview:selected {
-  background-color: var(--surface-bright);
-}
-
 #search-entry-walls {
   /* min-width: 512px; */
 }
 
-/* Customize the overall switch appearance */
 #matugen-switcher,
 #dnd-switch {
   min-width: 40px;
@@ -41,7 +32,6 @@
   transition: background-color 0.3s ease;
 }
 
-/* Style the switch's slider */
 #matugen-switcher slider,
 #dnd-switch slider {
   background-color: var(--primary);
@@ -53,13 +43,11 @@
     transform 0.25s cubic-bezier(0.5, 0.25, 0, 1.25);
 }
 
-/* When the switch is active (checked) */
 #matugen-switcher:checked,
 #dnd-switch:checked {
   background-color: var(--primary);
 }
 
-/* Optional: additional styling for the slider when active */
 #matugen-switcher:checked slider,
 #dnd-switch:checked slider {
   background-color: var(--shadow);
