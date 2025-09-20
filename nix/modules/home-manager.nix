@@ -4,8 +4,10 @@ with lib;
 
 let
   cfg = config.programs.ax-shell;
-
   matugenTOMLFormat = pkgs.formats.toml { };
+
+  axShellConfigDir = "${config.xdg.configHome}/ax-shell";
+  axSendCmd = "${pkgs.ax-send}/bin/ax-send";
 
   defaultMatugenSettings = {
     config = {
@@ -28,22 +30,15 @@ let
     templates = {
       hyprland = {
         input_path = "${cfg.package}/share/ax-shell/config/matugen/templates/hyprland-colors.conf";
-        output_path = "${config.xdg.configHome}/ax-shell/config/hypr/colors.conf";
+        output_path = "${axShellConfigDir}/config/hypr/colors.conf";
       };
       "ax-shell" = {
         input_path = "${cfg.package}/share/ax-shell/config/matugen/templates/ax-shell.css";
-        output_path = "${config.xdg.configHome}/ax-shell/styles/colors.css";
-        post_hook = "${pkgs.ax-send}/bin/ax-send reload_css &";
+        output_path = "${axShellConfigDir}/styles/colors.css";
+        post_hook = "${axSendCmd} reload_css &";
       };
     };
   };
-
-  formatKeybindings = keybindings:
-    let
-      prefixes = mapAttrs' (name: value: nameValuePair "prefix_${name}" value.prefix) keybindings;
-      suffixes = mapAttrs' (name: value: nameValuePair "suffix_${name}" value.suffix) keybindings;
-    in
-    prefixes // suffixes;
 
   formatJson = settings: {
     wallpapers_dir = settings.wallpapersDir;
@@ -82,7 +77,74 @@ let
     history_ignored_apps = settings.notifications.historyIgnoredApps;
     metrics_visible = settings.metrics.main;
     metrics_small_visible = settings.metrics.small;
-  } // (formatKeybindings cfg.settings.keybindings);
+  } // (
+    let
+      prefixes = mapAttrs' (n: v: nameValuePair "prefix_${n}" v.prefix) settings.keybindings;
+      suffixes = mapAttrs' (n: v: nameValuePair "suffix_${n}" v.suffix) settings.keybindings;
+    in
+    prefixes // suffixes
+  );
+
+  wrappedPackage =
+    let
+      jsonConfigFile = pkgs.writeText "ax-shell-config.json" (builtins.toJSON (formatJson cfg.settings));
+      generatedMainCss = pkgs.writeTextFile {
+        name = "main-generated.css";
+        text =
+          let
+            originalContent = builtins.readFile "${cfg.package}/share/ax-shell/main.css";
+            packageStylesPath = "${cfg.package}/share/ax-shell/styles";
+            absoluteColorsImport = ''@import url("${axShellConfigDir}/styles/colors.css");'';
+            contentWithAbsolutePaths = lib.replaceStrings
+              (lib.mapAttrsToList (n: _: ''./styles/${n}'') (builtins.readDir packageStylesPath))
+              (lib.mapAttrsToList (n: _: ''${packageStylesPath}/${n}'') (builtins.readDir packageStylesPath))
+              originalContent;
+          in
+          "${absoluteColorsImport}\n${contentWithAbsolutePaths}";
+      };
+    in
+    pkgs.symlinkJoin {
+      name = "ax-shell-with-declarative-config";
+      paths = [ cfg.package ];
+      nativeBuildInputs = [ pkgs.makeWrapper ];
+      postBuild = ''
+        wrapProgram $out/bin/ax-shell \
+          --set AX_SHELL_CONFIG_FILE "${jsonConfigFile}" \
+          --set AX_SHELL_STYLESHEET_FILE "${generatedMainCss}" \
+          --set AX_SHELL_MATUGEN_BIN "${pkgs.matugen}/bin/matugen"
+      '';
+    };
+
+  ax-shell-runner = pkgs.writeShellScriptBin "ax-shell-run" ''
+    #!${pkgs.bash}/bin/bash
+    mkdir -p "$(dirname "${cfg.autostart.logPath}")"
+    exec ${wrappedPackage}/bin/ax-shell &> "${cfg.autostart.logPath}"
+  '';
+
+  reloadCmdScript = pkgs.writeShellApplication {
+    name = "ax-shell-reload";
+    runtimeInputs = [ pkgs.procps pkgs.psmisc ];
+    text = ''
+      #!${pkgs.stdenv.shell}
+      killall ax-shell
+      while pgrep -x ax-shell >/dev/null; do
+          sleep 0.1
+      done
+      ${pkgs.uwsm}/bin/uwsm-app -- ${ax-shell-runner}/bin/ax-shell-run
+    '';
+  };
+
+  initialThemeGenCmd = pkgs.writeShellScript "matugen-initial-gen" ''
+    HYPR_COLORS_PATH="${axShellConfigDir}/config/hypr/colors.conf"
+    CSS_COLORS_PATH="${axShellConfigDir}/styles/colors.css"
+
+    if [ ! -f "$HYPR_COLORS_PATH" ] || [ ! -f "$CSS_COLORS_PATH" ]; then
+      echo "Ax-Shell: Color scheme not found. Generating from default wallpaper."
+      mkdir -p "$(dirname "$HYPR_COLORS_PATH")"
+      mkdir -p "$(dirname "$CSS_COLORS_PATH")"
+      ${pkgs.matugen}/bin/matugen image "${cfg.settings.defaultWallpaper}"
+    fi
+  '';
 
 in
 {
@@ -108,9 +170,6 @@ in
     };
 
     matugen = {
-      enable = mkEnableOption "matugen integration for Ax-Shell" // {
-        default = true;
-      };
       settings = mkOption {
         type = matugenTOMLFormat.type;
         description = "Declarative configuration for matugen's config.toml. WARNING: This replaces the entire default configuration.";
@@ -302,6 +361,7 @@ in
         description = "Keybindings for various Ax-Shell actions.";
       };
     };
+
     hyprlandBinds = mkOption {
       type = with types; listOf str;
       readOnly = true;
@@ -314,139 +374,61 @@ in
     };
   };
 
-  config = mkIf cfg.enable (
-    let
-      jsonConfigFile = pkgs.writeText "ax-shell-config.json" (builtins.toJSON (formatJson cfg.settings));
+  config = mkIf cfg.enable {
+    home.packages = [
+      wrappedPackage
+      pkgs.ax-send
+      pkgs.wl-clipboard
+      pkgs.cliphist
+      pkgs.swww
+      pkgs.matugen
+    ];
 
-      finalMatugenSettings = lib.recursiveUpdate cfg.matugen.settings cfg.matugen.extraSettings;
+    home.file."${config.xdg.configHome}/matugen/config.toml" = {
+      source = let
+        finalMatugenSettings = lib.recursiveUpdate cfg.matugen.settings cfg.matugen.extraSettings;
+      in matugenTOMLFormat.generate "matugen-config.toml" finalMatugenSettings;
+    };
 
-      generatedMainCss = pkgs.writeTextFile {
-        name = "main-generated.css";
-        text =
-          let
-            originalContent = builtins.readFile "${cfg.package}/share/ax-shell/main.css";
-            colorsCssPath = "${config.xdg.configHome}/ax-shell/styles/colors.css";
-            packageStylesPath = "${cfg.package}/share/ax-shell/styles";
-            absoluteColorsImport = ''@import url("${colorsCssPath}");'';
-            contentWithAbsolutePaths = lib.replaceStrings
-              (lib.mapAttrsToList (name: _: ''./styles/${name}'') (builtins.readDir packageStylesPath))
-              (lib.mapAttrsToList (name: _: ''${packageStylesPath}/${name}'') (builtins.readDir packageStylesPath))
-              originalContent;
-          in
-          "${absoluteColorsImport}\n${contentWithAbsolutePaths}";
-      };
+    home.file."${axShellConfigDir}/current.wall" = {
+      source = cfg.settings.defaultWallpaper;
+      force = true;
+    };
 
-      wrappedPackage = pkgs.symlinkJoin {
-        name = "ax-shell-with-declarative-config";
-        paths = [ cfg.package ];
-        nativeBuildInputs = [ pkgs.makeWrapper ];
-        postBuild = ''
-          wrapProgram $out/bin/ax-shell \
-            --set AX_SHELL_CONFIG_FILE "${jsonConfigFile}" \
-            --set AX_SHELL_STYLESHEET_FILE "${generatedMainCss}" \
-            --set AX_SHELL_MATUGEN_BIN "${pkgs.matugen}/bin/matugen"
-        '';
-      };
+    home.file."${axShellConfigDir}/face.icon" = {
+      source = cfg.settings.defaultFaceIcon;
+      force = false;
+    };
 
-      kb = cfg.settings.keybindings;
-      axSendCmd = "${pkgs.ax-send}/bin/ax-send";
+    programs.ax-shell.hyprlandBinds = let kb = cfg.settings.keybindings;
+    in [
+      "${kb.restart.prefix}, ${kb.restart.suffix}, exec, ${reloadCmdScript}/bin/ax-shell-reload"
+      "${kb.axmsg.prefix}, ${kb.axmsg.suffix}, exec, notify-send '...'"
+      "${kb.dash.prefix}, ${kb.dash.suffix}, exec, ${axSendCmd} open_dashboard"
+      "${kb.bluetooth.prefix}, ${kb.bluetooth.suffix}, exec, ${axSendCmd} open_bluetooth"
+      "${kb.pins.prefix}, ${kb.pins.suffix}, exec, ${axSendCmd} open_pins"
+      "${kb.kanban.prefix}, ${kb.kanban.suffix}, exec, ${axSendCmd} open_kanban"
+      "${kb.launcher.prefix}, ${kb.launcher.suffix}, exec, ${axSendCmd} open_launcher"
+      "${kb.tmux.prefix}, ${kb.tmux.suffix}, exec, ${axSendCmd} open_tmux"
+      "${kb.cliphist.prefix}, ${kb.cliphist.suffix}, exec, ${axSendCmd} open_cliphist"
+      "${kb.toolbox.prefix}, ${kb.toolbox.suffix}, exec, ${axSendCmd} open_tools"
+      "${kb.overview.prefix}, ${kb.overview.suffix}, exec, ${axSendCmd} open_overview"
+      "${kb.wallpapers.prefix}, ${kb.wallpapers.suffix}, exec, ${axSendCmd} open_wallpapers"
+      "${kb.mixer.prefix}, ${kb.mixer.suffix}, exec, ${axSendCmd} open_mixer"
+      "${kb.emoji.prefix}, ${kb.emoji.suffix}, exec, ${axSendCmd} open_emoji"
+      "${kb.power.prefix}, ${kb.power.suffix}, exec, ${axSendCmd} open_power"
+      "${kb.randwall.prefix}, ${kb.randwall.suffix}, exec, ${axSendCmd} random_wallpaper"
+      "${kb.caffeine.prefix}, ${kb.caffeine.suffix}, exec, ${axSendCmd} toggle_caffeine"
+      "${kb.restart_inspector.prefix}, ${kb.restart_inspector.suffix}, exec, GTK_DEBUG=interactive ${reloadCmdScript}/bin/ax-shell-reload"
+    ];
 
-      ax-shell-runner = pkgs.writeShellScriptBin "ax-shell-run" ''
-        #!${pkgs.bash}/bin/bash
-        mkdir -p "$(dirname "${cfg.autostart.logPath}")"
-        exec ${wrappedPackage}/bin/ax-shell &> "${cfg.autostart.logPath}"
-      '';
-
-      reloadCmdScript = pkgs.writeShellApplication {
-        name = "ax-shell-reload";
-        runtimeInputs = [ pkgs.procps pkgs.psmisc ];
-        text = ''
-          #!${pkgs.stdenv.shell}
-          killall ax-shell
-          while pgrep -x ax-shell >/dev/null; do
-              sleep 0.1
-          done
-          ${pkgs.uwsm}/bin/uwsm-app -- ${ax-shell-runner}/bin/ax-shell-run
-        '';
-      };
-
-      initialThemeGenCmd = pkgs.writeShellScript "matugen-initial-gen" ''
-        HYPR_COLORS_PATH="${config.xdg.configHome}/ax-shell/config/hypr/colors.conf"
-        CSS_COLORS_PATH="${config.xdg.configHome}/ax-shell/styles/colors.css"
-
-        if [ ! -f "$HYPR_COLORS_PATH" ] || [ ! -f "$CSS_COLORS_PATH" ]; then
-          echo "Ax-Shell: Color scheme not found. Generating from default wallpaper."
-          mkdir -p "$(dirname "$HYPR_COLORS_PATH")"
-          mkdir -p "$(dirname "$CSS_COLORS_PATH")"
-          ${pkgs.matugen}/bin/matugen image "${cfg.settings.defaultWallpaper}"
-        fi
-      '';
-
-      axShellBinds = [
-        "${kb.restart.prefix}, ${kb.restart.suffix}, exec, ${reloadCmdScript}/bin/ax-shell-reload"
-        "${kb.axmsg.prefix}, ${kb.axmsg.suffix}, exec, notify-send '...'"
-        "${kb.dash.prefix}, ${kb.dash.suffix}, exec, ${axSendCmd} open_dashboard"
-        "${kb.bluetooth.prefix}, ${kb.bluetooth.suffix}, exec, ${axSendCmd} open_bluetooth"
-        "${kb.pins.prefix}, ${kb.pins.suffix}, exec, ${axSendCmd} open_pins"
-        "${kb.kanban.prefix}, ${kb.kanban.suffix}, exec, ${axSendCmd} open_kanban"
-        "${kb.launcher.prefix}, ${kb.launcher.suffix}, exec, ${axSendCmd} open_launcher"
-        "${kb.tmux.prefix}, ${kb.tmux.suffix}, exec, ${axSendCmd} open_tmux"
-        "${kb.cliphist.prefix}, ${kb.cliphist.suffix}, exec, ${axSendCmd} open_cliphist"
-        "${kb.toolbox.prefix}, ${kb.toolbox.suffix}, exec, ${axSendCmd} open_tools"
-        "${kb.overview.prefix}, ${kb.overview.suffix}, exec, ${axSendCmd} open_overview"
-        "${kb.wallpapers.prefix}, ${kb.wallpapers.suffix}, exec, ${axSendCmd} open_wallpapers"
-        "${kb.mixer.prefix}, ${kb.mixer.suffix}, exec, ${axSendCmd} open_mixer"
-        "${kb.emoji.prefix}, ${kb.emoji.suffix}, exec, ${axSendCmd} open_emoji"
-        "${kb.power.prefix}, ${kb.power.suffix}, exec, ${axSendCmd} open_power"
-        "${kb.randwall.prefix}, ${kb.randwall.suffix}, exec, ${axSendCmd} random_wallpaper"
-        "${kb.caffeine.prefix}, ${kb.caffeine.suffix}, exec, ${axSendCmd} toggle_caffeine"
-        "${kb.restart_inspector.prefix}, ${kb.restart_inspector.suffix}, exec, GTK_DEBUG=interactive ${reloadCmdScript}/bin/ax-shell-reload"
-      ];
-
-      axShellExecOnce = if cfg.autostart.enable then
-        let
-          uwsm-app = "${pkgs.uwsm}/bin/uwsm-app";
-          swww-daemon = "swww-daemon";
-          swww-img = "${pkgs.swww}/bin/swww img";
-          wallpaper-link = "${config.xdg.configHome}/ax-shell/current.wall";
-        in
-        [
-          "${swww-daemon}"
-          "sleep 1"
-          (if cfg.matugen.enable then "${initialThemeGenCmd}" else "")
-          "${uwsm-app} -- ${ax-shell-runner}/bin/ax-shell-run"
-          "wl-paste --type text --watch cliphist store"
-          "wl-paste --type image --watch cliphist store"
-        ]
-      else
-        [ ];
-
-    in
-    {
-      home.packages = [
-        wrappedPackage
-        pkgs.swww
-        pkgs.ax-send
-        pkgs.wl-clipboard
-        pkgs.cliphist
-      ] ++ (if cfg.matugen.enable then [ pkgs.matugen ] else [ ]);
-
-      home.file."${config.xdg.configHome}/matugen/config.toml" = mkIf cfg.matugen.enable {
-        source = matugenTOMLFormat.generate "matugen-config.toml" finalMatugenSettings;
-      };
-
-      home.file."${config.xdg.configHome}/ax-shell/current.wall" = {
-        source = cfg.settings.defaultWallpaper;
-        force = true;
-      };
-
-      home.file."${config.xdg.configHome}/ax-shell/face.icon" = {
-        source = cfg.settings.defaultFaceIcon;
-        force = false;
-      };
-
-      programs.ax-shell.hyprlandBinds = axShellBinds;
-      programs.ax-shell.hyprlandExecOnce = axShellExecOnce;
-    }
-  );
+    programs.ax-shell.hyprlandExecOnce = if cfg.autostart.enable then [
+      "swww-daemon"
+      "sleep 1"
+      "${initialThemeGenCmd}"
+      "${pkgs.uwsm}/bin/uwsm-app -- ${ax-shell-runner}/bin/ax-shell-run"
+      "wl-paste --type text --watch cliphist store"
+      "wl-paste --type image --watch cliphist store"
+    ] else [ ];
+  };
 }
