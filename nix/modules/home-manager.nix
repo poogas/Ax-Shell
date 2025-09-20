@@ -7,6 +7,37 @@ let
 
   matugenTOMLFormat = pkgs.formats.toml { };
 
+  defaultMatugenSettings = {
+    config = {
+      reload_apps = true;
+      wallpaper = {
+        command = "swww";
+        arguments = [ "img" "-t" "fade" "--transition-duration" "0.5" "--transition-step" "255" "--transition-fps" "60" "-f" "Nearest" ];
+        set = true;
+      };
+      custom_colors = {
+        red = { color = "#FF0000"; blend = true; };
+        green = { color = "#00FF00"; blend = true; };
+        yellow = { color = "#FFFF00"; blend = true; };
+        blue = { color = "#0000FF"; blend = true; };
+        magenta = { color = "#FF00FF"; blend = true; };
+        cyan = { color = "#00FFFF"; blend = true; };
+        white = { color = "#FFFFFF"; blend = true; };
+      };
+    };
+    templates = {
+      hyprland = {
+        input_path = "${cfg.package}/share/ax-shell/config/matugen/templates/hyprland-colors.conf";
+        output_path = "${config.xdg.configHome}/ax-shell/config/hypr/colors.conf";
+      };
+      "ax-shell" = {
+        input_path = "${cfg.package}/share/ax-shell/config/matugen/templates/ax-shell.css";
+        output_path = "${config.xdg.configHome}/ax-shell/styles/colors.css";
+        post_hook = "${pkgs.ax-send}/bin/ax-send reload_css &";
+      };
+    };
+  };
+
   formatKeybindings = keybindings:
     let
       prefixes = mapAttrs' (name: value: nameValuePair "prefix_${name}" value.prefix) keybindings;
@@ -82,37 +113,13 @@ in
       };
       settings = mkOption {
         type = matugenTOMLFormat.type;
-        description = "Declarative configuration for matugen's config.toml.";
-        default = {
-          config = {
-            reload_apps = true;
-            wallpaper = {
-              command = "swww";
-              arguments = [ "img" "-t" "fade" "--transition-duration" "0.5" "--transition-step" "255" "--transition-fps" "60" "-f" "Nearest" ];
-              set = true;
-            };
-            custom_colors = {
-              red = { color = "#FF0000"; blend = true; };
-              green = { color = "#00FF00"; blend = true; };
-              yellow = { color = "#FFFF00"; blend = true; };
-              blue = { color = "#0000FF"; blend = true; };
-              magenta = { color = "#FF00FF"; blend = true; };
-              cyan = { color = "#00FFFF"; blend = true; };
-              white = { color = "#FFFFFF"; blend = true; };
-            };
-          };
-          templates = {
-            hyprland = {
-              input_path = "${cfg.package}/share/ax-shell/config/matugen/templates/hyprland-colors.conf";
-              output_path = "${config.xdg.configHome}/ax-shell/config/hypr/colors.conf";
-            };
-            "ax-shell" = {
-              input_path = "${cfg.package}/share/ax-shell/config/matugen/templates/ax-shell.css";
-              output_path = "${config.xdg.configHome}/ax-shell/styles/colors.css";
-              post_hook = "${pkgs.ax-send}/bin/ax-send reload_css &";
-            };
-          };
-        };
+        description = "Declarative configuration for matugen's config.toml. WARNING: This replaces the entire default configuration.";
+        default = defaultMatugenSettings;
+      };
+      extraSettings = mkOption {
+        type = types.anything;
+        default = {};
+        description = "Extra settings to recursively merge into the default matugen configuration. This is the recommended way to customize matugen.";
       };
     };
 
@@ -311,6 +318,8 @@ in
     let
       jsonConfigFile = pkgs.writeText "ax-shell-config.json" (builtins.toJSON (formatJson cfg.settings));
 
+      finalMatugenSettings = lib.recursiveUpdate cfg.matugen.settings cfg.matugen.extraSettings;
+
       generatedMainCss = pkgs.writeTextFile {
         name = "main-generated.css";
         text =
@@ -423,7 +432,7 @@ in
       ] ++ (if cfg.matugen.enable then [ pkgs.matugen ] else [ ]);
 
       home.file."${config.xdg.configHome}/matugen/config.toml" = mkIf cfg.matugen.enable {
-        source = matugenTOMLFormat.generate "matugen-config.toml" cfg.matugen.settings;
+        source = matugenTOMLFormat.generate "matugen-config.toml" finalMatugenSettings;
       };
 
       home.file."${config.xdg.configHome}/ax-shell/current.wall" = {
