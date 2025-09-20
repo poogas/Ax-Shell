@@ -428,7 +428,7 @@ class Notch(Window):
 
         self._current_window_class = self._get_current_window_class()
 
-        if data.PANEL_THEME == "Notch" and data.BAR_POSITION != "Top":
+        if data.PANEL_THEME == "Notch":
             GLib.timeout_add(250, self._check_occlusion)
         elif data.PANEL_THEME == "Notch":
             self.notch_revealer.set_reveal_child(True)
