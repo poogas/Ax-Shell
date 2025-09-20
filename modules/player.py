@@ -44,6 +44,7 @@ class PlayerBox(Box):
         super().__init__(orientation="v", h_align="fill", spacing=0, h_expand=False, v_expand=not vertical_mode)
         self.mpris_player = mpris_player
         self._progress_timer_id = None
+        self._wallpaper_monitor = None
 
         self.cover = CircleImage(
             name="player-cover",
@@ -178,7 +179,10 @@ class PlayerBox(Box):
             spacing=4,
             children=self.p_children,
         )
+
         self.add(self.player_box)
+        self._setup_wallpaper_monitor()
+
         if mpris_player:
             self._apply_mpris_properties()
             self.prev.connect("clicked", self._on_prev_clicked)
@@ -197,6 +201,18 @@ class PlayerBox(Box):
             self.next.add_style_class("disabled")
             self.progressbar.set_value(0.0)
             self.time.set_text("--:-- / --:--")
+
+    def _setup_wallpaper_monitor(self):
+        """Sets up a monitor for the wallpaper symlink."""
+        if self._wallpaper_monitor:
+            return
+        
+        wallpaper_path = data.CURRENT_WALLPAPER_PATH
+        if os.path.exists(wallpaper_path):
+            file_obj = Gio.File.new_for_path(wallpaper_path)
+            monitor = file_obj.monitor_file(Gio.FileMonitorFlags.NONE, None)
+            monitor.connect("changed", self.on_wallpaper_changed)
+            self._wallpaper_monitor = monitor
 
     def _apply_mpris_properties(self):
         mp = self.mpris_player
@@ -221,10 +237,6 @@ class PlayerBox(Box):
         else:
             fallback = data.CURRENT_WALLPAPER_PATH
             self._set_cover_image(fallback)
-            file_obj = Gio.File.new_for_path(fallback)
-            monitor = file_obj.monitor_file(Gio.FileMonitorFlags.NONE, None)
-            monitor.connect("changed", self.on_wallpaper_changed)
-            self._wallpaper_monitor = monitor
         self.update_play_pause_icon()
 
         self.progressbar.set_visible(True)
@@ -269,10 +281,6 @@ class PlayerBox(Box):
         else:
             fallback = data.CURRENT_WALLPAPER_PATH
             self.cover.set_image_from_file(fallback)
-            file_obj = Gio.File.new_for_path(fallback)
-            monitor = file_obj.monitor_file(Gio.FileMonitorFlags.NONE, None)
-            monitor.connect("changed", self.on_wallpaper_changed)
-            self._wallpaper_monitor = monitor
 
     def _download_and_set_artwork(self, arturl):
         """
