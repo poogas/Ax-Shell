@@ -85,12 +85,25 @@ class WallpaperSelector(Box):
             "scheme-neutral": "Neutral", "scheme-rainbow": "Rainbow",
         }
 
-        self.scheme_dropdown = Gtk.ComboBoxText()
-        self.scheme_dropdown.set_name("scheme-dropdown")
-        self.scheme_dropdown.set_tooltip_text("Select color scheme")
+        self.selected_scheme_id = "scheme-tonal-spot"
+
+        self.schemes_menu = Gtk.Menu()
+
         for key, display_name in self.schemes.items():
-            self.scheme_dropdown.append(key, display_name)
-        self.scheme_dropdown.set_active_id("scheme-tonal-spot")
+            menu_item = Gtk.MenuItem(label=display_name)
+            menu_item.connect("activate", self.on_scheme_selected, key)
+            self.schemes_menu.append(menu_item)
+        
+        self.schemes_menu.show_all()
+
+        self.scheme_menubutton = Gtk.MenuButton(
+            name="scheme-dropdown",
+            tooltip_text="Select color scheme",
+        )
+        self.scheme_menubutton.set_popup(self.schemes_menu)
+        
+        self.scheme_menubutton_label = Gtk.Label(label=self.schemes[self.selected_scheme_id])
+        self.scheme_menubutton.add(self.scheme_menubutton_label)
 
         self.matugen_enabled = True
         try:
@@ -123,7 +136,7 @@ class WallpaperSelector(Box):
             name="header-box",
             spacing=8,
             orientation="h",
-            children=[self.random_wall, self.search_entry, self.scheme_dropdown, self.matugen_switcher],
+            children=[self.random_wall, self.search_entry, self.scheme_menubutton, self.matugen_switcher],
         )
         self.add(self.header_box)
 
@@ -159,13 +172,17 @@ class WallpaperSelector(Box):
         self.randomize_dice_icon()
         self.search_entry.grab_focus()
 
+    def on_scheme_selected(self, menu_item, scheme_id):
+        self.selected_scheme_id = scheme_id
+        self.scheme_menubutton_label.set_label(self.schemes[scheme_id])
+
     def _set_wallpaper_and_link(self, full_path: str):
         if not os.path.exists(full_path):
             print(f"Error: Wallpaper path does not exist: {full_path}")
             return
 
         matugen_bin = os.getenv("AX_SHELL_MATUGEN_BIN", "matugen")
-        selected_scheme = self.scheme_dropdown.get_active_id()
+        selected_scheme = self.selected_scheme_id
 
         command = f"'{matugen_bin}' image '{full_path}' -t {selected_scheme}"
 
@@ -270,13 +287,19 @@ class WallpaperSelector(Box):
         if event.state & Gdk.ModifierType.SHIFT_MASK:
             if event.keyval in (Gdk.KEY_Up, Gdk.KEY_Down):
                 schemes_list = list(self.schemes.keys())
-                current_id = self.scheme_dropdown.get_active_id()
-                current_index = schemes_list.index(current_id) if current_id in schemes_list else 0
-                new_index = (current_index - 1) % len(schemes_list) if event.keyval == Gdk.KEY_Up else (current_index + 1) % len(schemes_list)
-                self.scheme_dropdown.set_active(new_index)
+                try:
+                    current_index = schemes_list.index(self.selected_scheme_id)
+                    if event.keyval == Gdk.KEY_Up:
+                        new_index = (current_index - 1 + len(schemes_list)) % len(schemes_list)
+                    else:
+                        new_index = (current_index + 1) % len(schemes_list)
+                    new_scheme_id = schemes_list[new_index]
+                    self.on_scheme_selected(None, new_scheme_id)
+                except ValueError:
+                    pass
                 return True
             elif event.keyval == Gdk.KEY_Right:
-                self.scheme_dropdown.popup()
+                self.scheme_menubutton.popup()
                 return True
         if event.keyval in (Gdk.KEY_Up, Gdk.KEY_Down, Gdk.KEY_Left, Gdk.KEY_Right):
             self.move_selection_2d(event.keyval)
@@ -379,5 +402,5 @@ class WallpaperSelector(Box):
         matugen_bin = os.getenv("AX_SHELL_MATUGEN_BIN", "matugen")
         hue_value = self.hue_slider.get_value()
         hex_color = self.hsl_to_rgb_hex(hue_value)
-        selected_scheme = self.scheme_dropdown.get_active_id()
+        selected_scheme = self.selected_scheme_id
         exec_shell_command_async(f"'{matugen_bin}' color hex '{hex_color}' -t {selected_scheme}")
