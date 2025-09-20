@@ -27,6 +27,8 @@ XDG_STATE_HOME = os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/s
 STATE_DIR = os.path.join(XDG_STATE_HOME, APP_NAME)
 os.makedirs(STATE_DIR, exist_ok=True)
 
+GENERATED_COLORS_CSS_PATH = os.path.join(XDG_CONFIG_HOME, f"{APP_NAME}/styles/colors.css")
+
 screen = Gdk.Screen.get_default()
 CURRENT_WIDTH = screen.get_width()
 CURRENT_HEIGHT = screen.get_height()

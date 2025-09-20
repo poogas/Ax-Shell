@@ -5,6 +5,7 @@ import re
 import signal
 import struct
 import subprocess
+import config.data as data
 from math import pi
 
 from fabric.utils.helpers import get_relative_path
@@ -230,7 +231,7 @@ class Spectrum:
         """Set drawing color according to current settings by reading primary color from CSS"""
         color = "#a5c8ff"  # default value
         try:
-            with open(get_relative_path("../styles/colors.css"), "r") as f:
+            with open(data.GENERATED_COLORS_CSS_PATH, "r") as f:
                 content = f.read()
                 m = re.search(r"--primary:\s*(#[0-9a-fA-F]{6})", content)
                 if m:
