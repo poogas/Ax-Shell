@@ -17,8 +17,6 @@ OCR_SCRIPT = get_relative_path("../scripts/ocr.sh")
 GAMEMODE_SCRIPT = get_relative_path("../scripts/gamemode.sh")
 SCREENRECORD_SCRIPT = get_relative_path("../scripts/screenrecord.sh")
 
-# Tooltips
-## Screenshot
 tooltip_ssregion = """<b><u>Region Screenshot</u></b>
 <b>Left Click:</b> Take a screenshot of a selected region.
 <b>Right Click:</b> Take a mockup screenshot of a selected region."""
@@ -75,7 +73,6 @@ class Toolbox(Box):
             name="toolbox-button",
             tooltip_markup=tooltip_ssregion,
             child=Label(name="button-label", markup=icons.ssregion),
-            on_clicked=self.ssregion,
             h_expand=False,
             v_expand=False,
             h_align="center",
@@ -89,14 +86,13 @@ class Toolbox(Box):
             name="toolbox-button",
             tooltip_markup=tooltip_ssfull,
             child=Label(name="button-label", markup=icons.ssfull),
-            on_clicked=self.ssfull,
             h_expand=False,
             v_expand=False,
             h_align="center",
             v_align="center",
         )
 
-        self.btn_ssfull.set_can_focus(True) 
+        self.btn_ssfull.set_can_focus(True)
         self.btn_ssfull.connect("button-press-event", self.on_ssfull_click)
         self.btn_ssfull.connect("key-press-event", self.on_ssfull_key)
 
@@ -104,7 +100,6 @@ class Toolbox(Box):
             name="toolbox-button",
             tooltip_markup=tooltip_sswindow,
             child=Label(name="button-label", markup=icons.sswindow),
-            on_clicked=self.sswindow,
             h_expand=False,
             v_expand=False,
             h_align="center",
@@ -187,7 +182,7 @@ class Toolbox(Box):
             h_align="center",
             v_align="center",
         )
-        
+
         self.btn_screenshots_folder = Button(
             name="toolbox-button",
             tooltip_markup=tooltip_screenshots,
@@ -198,7 +193,7 @@ class Toolbox(Box):
             h_align="center",
             v_align="center",
         )
-        
+
         self.btn_recordings_folder = Button(
             name="toolbox-button",
             tooltip_markup=tooltip_recordings,
@@ -239,11 +234,40 @@ class Toolbox(Box):
     def close_menu(self):
         self.notch.close_notch()
 
-    def ssfull(self, *args, mockup=False):
+    def _execute_screenshot(self, command_str, mode_name):
+        """
+        Executes a command in a shell and watches for its completion to send a notification.
+        """
+        try:
+            argv = ["/bin/sh", "-c", command_str]
+            pid, _, _, _ = GLib.spawn_async(
+                argv,
+                flags=GLib.SpawnFlags.DO_NOT_REAP_CHILD | GLib.SpawnFlags.SEARCH_PATH,
+            )
+
+            GLib.child_watch_add(GLib.PRIORITY_DEFAULT, pid, self.on_screenshot_exit, mode_name)
+        except GLib.Error as e:
+            logger.error(f"Failed to spawn command '{command_str}': {e.message}")
+            exec_shell_command_async(f"notify-send 'Screenshot Failed' 'Could not start the process.'")
+
+    def on_screenshot_exit(self, pid, status, mode_name):
+        """
+        Callback function for when the screenshot process finishes.
+        This ONLY handles the cancellation/error case now.
+        """
+        if os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0:
+            pass
+        else:
+            logger.warning(f"Screenshot process for '{mode_name}' exited with status {os.WEXITSTATUS(status)}")
+            exec_shell_command_async(f"notify-send 'Screenshot Canceled' 'Or an error occurred.' -u low")
+        
+        GLib.spawn_close_pid(pid)
+
+    def ssfull(self, mockup=False):
         cmd = f"bash {SCREENSHOT_SCRIPT} p"
         if mockup:
             cmd += " mockup"
-        exec_shell_command_async(cmd)
+        self._execute_screenshot(cmd, "Fullscreen")
         self.close_menu()
 
     def on_ssfull_click(self, button, event):
@@ -265,8 +289,11 @@ class Toolbox(Box):
             return True
         return False
 
-    def ssregion(self, *args):
-        exec_shell_command_async(f"bash {SCREENSHOT_SCRIPT} s")
+    def ssregion(self, mockup=False):
+        cmd = f"bash {SCREENSHOT_SCRIPT} s"
+        if mockup:
+            cmd += " mockup"
+        self._execute_screenshot(cmd, "Region")
         self.close_menu()
 
     def on_ssregion_click(self, button, event):
@@ -274,8 +301,7 @@ class Toolbox(Box):
             if event.button == 1:
                 self.ssregion()
             elif event.button == 3:
-                exec_shell_command_async(f"bash {SCREENSHOT_SCRIPT} s mockup")
-                self.close_menu()
+                self.ssregion(mockup=True)
             return True
         return False
 
@@ -283,15 +309,17 @@ class Toolbox(Box):
         if event.keyval in {Gdk.KEY_Return, Gdk.KEY_KP_Enter}:
             modifiers = event.get_state()
             if modifiers & Gdk.ModifierType.SHIFT_MASK:
-                exec_shell_command_async(f"bash {SCREENSHOT_SCRIPT} s mockup")
-                self.close_menu()
+                self.ssregion(mockup=True)
             else:
                 self.ssregion()
             return True
         return False
 
-    def sswindow(self, *args):
-        exec_shell_command_async(f"bash {SCREENSHOT_SCRIPT} w")
+    def sswindow(self, mockup=False):
+        cmd = f"bash {SCREENSHOT_SCRIPT} w"
+        if mockup:
+            cmd += " mockup"
+        self._execute_screenshot(cmd, "Active Window")
         self.close_menu()
 
     def on_sswindow_click(self, button, event):
@@ -299,8 +327,7 @@ class Toolbox(Box):
             if event.button == 1:
                 self.sswindow()
             elif event.button == 3:
-                exec_shell_command_async(f"bash {SCREENSHOT_SCRIPT} w mockup")
-                self.close_menu()
+                self.sswindow(mockup=True)
             return True
         return False
 
@@ -308,15 +335,13 @@ class Toolbox(Box):
         if event.keyval in {Gdk.KEY_Return, Gdk.KEY_KP_Enter}:
             modifiers = event.get_state()
             if modifiers & Gdk.ModifierType.SHIFT_MASK:
-                exec_shell_command_async(f"bash {SCREENSHOT_SCRIPT} w mockup")
-                self.close_menu()
+                self.sswindow(mockup=True)
             else:
                 self.sswindow()
             return True
         return False
 
     def screenrecord(self, *args):
-
         exec_shell_command_async(f"bash -c 'nohup bash {SCREENRECORD_SCRIPT} > /dev/null 2>&1 & disown'")
         self.close_menu()
 
@@ -325,22 +350,18 @@ class Toolbox(Box):
         self.close_menu()
 
     def pomodoro_check(self):
-        """Check pomodoro status using proper background threading"""
         GLib.Thread.new("pomodoro-check", self._pomodoro_check_thread, None)
         return True
-    
+
     def _pomodoro_check_thread(self, user_data):
-        """Background thread to check pomodoro status"""
         try:
             result = subprocess.run("pgrep -f pomodoro.sh", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             running = result.returncode == 0
         except Exception:
             running = False
-
         GLib.idle_add(self._update_pomodoro_ui, running)
-    
+
     def _update_pomodoro_ui(self, running):
-        """Update pomodoro UI from main thread"""
         if running:
             self.btn_pomodoro.get_child().set_markup(icons.timer_on)
             self.btn_pomodoro.add_style_class("pomodoro")
@@ -359,22 +380,18 @@ class Toolbox(Box):
         self.close_menu()
 
     def gamemode_check(self):
-        """Check gamemode status using proper background threading"""
         GLib.Thread.new("gamemode-check", self._gamemode_check_thread, None)
         return True
-    
+
     def _gamemode_check_thread(self, user_data):
-        """Background thread to check gamemode status"""
         try:
             result = subprocess.run(f"bash {GAMEMODE_SCRIPT} check", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             enabled = result.stdout == b't\n'
         except Exception:
             enabled = False
-
         GLib.idle_add(self._update_gamemode_ui, enabled)
-    
+
     def _update_gamemode_ui(self, enabled):
-        """Update gamemode UI from main thread"""
         if enabled:
             self.btn_gamemode.get_child().set_markup(icons.gamemode_off)
         else:
@@ -388,7 +405,7 @@ class Toolbox(Box):
                 2: "-hsv",
                 3: "-rgb"
             }.get(event.button)
-            
+
             if cmd:
                 exec_shell_command_async(f"bash {get_relative_path('../scripts/hyprpicker.sh')} {cmd}")
                 self.close_menu()
@@ -410,22 +427,18 @@ class Toolbox(Box):
         return False
 
     def update_screenrecord_state(self):
-        """Check screen recording status using proper background threading"""
         GLib.Thread.new("screenrecord-check", self._screenrecord_check_thread, None)
         return True
-    
+
     def _screenrecord_check_thread(self, user_data):
-        """Background thread to check screen recording status"""
         try:
             result = subprocess.run("pgrep -f gpu-screen-recorder", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             running = result.returncode == 0
         except Exception:
             running = False
-
         GLib.idle_add(self._update_screenrecord_ui, running)
-    
+
     def _update_screenrecord_ui(self, running):
-        """Update screen recording UI from main thread"""
         if running:
             self.btn_screenrecord.get_child().set_markup(icons.stop)
             self.btn_screenrecord.add_style_class("recording")
@@ -435,19 +448,13 @@ class Toolbox(Box):
         return False
 
     def open_screenshots_folder(self, *args):
-        screenshots_dir = os.path.join(os.environ.get('XDG_PICTURES_DIR', 
-                                                    os.path.expanduser('~/Pictures')), 
-                                     'Screenshots')
-
+        screenshots_dir = os.path.join(os.environ.get('XDG_PICTURES_DIR', os.path.expanduser('~/Pictures')), 'Screenshots')
         os.makedirs(screenshots_dir, exist_ok=True)
         exec_shell_command_async(f"xdg-open {screenshots_dir}")
         self.close_menu()
 
     def open_recordings_folder(self, *args):
-        recordings_dir = os.path.join(os.environ.get('XDG_VIDEOS_DIR', 
-                                                   os.path.expanduser('~/Videos')), 
-                                    'Recordings')
-
+        recordings_dir = os.path.join(os.environ.get('XDG_VIDEOS_DIR', os.path.expanduser('~/Videos')), 'Recordings')
         os.makedirs(recordings_dir, exist_ok=True)
         exec_shell_command_async(f"xdg-open {recordings_dir}")
         self.close_menu()
