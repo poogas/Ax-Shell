@@ -38,9 +38,6 @@ stdenv.mkDerivation {
     gappsWrapperArgs+=(--set AX_SHELL_WALLPAPERS_DIR_DEFAULT "${placeholder "out"}/share/ax-shell/assets/wallpapers_example");
     gappsWrapperArgs+=(--set FABRIC_CSS_PATH "${placeholder "out"}/share/ax-shell/main.css");
     gappsWrapperArgs+=(--prefix PATH : "${lib.makeBinPath runtimeDeps}");
-    gappsWrapperArgs+=(--set XCURSOR_THEME "Adwaita");
-    gappsWrapperArgs+=(--set XCURSOR_SIZE "24");
-    gappsWrapperArgs+=(--prefix XCURSOR_PATH : "${adwaita-icon-theme}/share/icons");
     gappsWrapperArgs+=(--prefix XDG_DATA_DIRS : "${tabler-icons-font}/share");
     gappsWrapperArgs+=(--prefix XDG_DATA_DIRS : "${adwaita-icon-theme}/share");
   '';

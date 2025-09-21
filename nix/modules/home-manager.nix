@@ -111,7 +111,10 @@ let
         wrapProgram $out/bin/ax-shell \
           --set AX_SHELL_CONFIG_FILE "${jsonConfigFile}" \
           --set AX_SHELL_STYLESHEET_FILE "${generatedMainCss}" \
-          --set AX_SHELL_MATUGEN_BIN "${pkgs.matugen}/bin/matugen"
+          --set AX_SHELL_MATUGEN_BIN "${pkgs.matugen}/bin/matugen" \
+          --set XCURSOR_THEME "${cfg.settings.cursor.theme}" \
+          --set XCURSOR_SIZE "${toString cfg.settings.cursor.size}" \
+          --prefix XCURSOR_PATH : "${cfg.settings.cursor.package}/share/icons"
       '';
     };
 
@@ -331,6 +334,24 @@ in
         default = "${cfg.package}/share/ax-shell/assets/default.png";
         description = "Path to the default face icon to be used if ~/.face.icon does not exist.";
       };
+      cursor = {
+        theme = mkOption {
+          type = types.str;
+          default = "Adwaita";
+          description = "The name of the cursor theme.";
+        };
+        size = mkOption {
+          type = types.int;
+          default = 24;
+          description = "The size of the cursor.";
+        };
+        package = mkOption {
+          type = types.package;
+          default = pkgs.adwaita-icon-theme;
+          defaultText = literalExpression "pkgs.adwaita-icon-theme";
+          description = "The package that provides the cursor theme.";
+        };
+      };
       keybindings = mkOption {
         type = with types; attrsOf (submodule {
           options = {
@@ -382,6 +403,7 @@ in
       pkgs.cliphist
       pkgs.swww
       pkgs.matugen
+      cfg.settings.cursor.package
     ];
 
     home.file."${config.xdg.configHome}/matugen/config.toml" = {
