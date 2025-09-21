@@ -1,7 +1,5 @@
 #!/usr/bin/env sh
 
-sleep 0.5
-
 if [ -z "$XDG_PICTURES_DIR" ]; then
     XDG_PICTURES_DIR="$HOME/Pictures"
 fi
@@ -39,8 +37,18 @@ case $1 in
         ;;
 esac
 
-if [ -f "$full_path" ]; then
-    # Copiar al portapapeles si no es mockup
+file_ready=false
+for _ in $(seq 1 60); do
+    if [ -s "$full_path" ]; then
+        if ! lsof "$full_path" > /dev/null 2>&1; then
+            file_ready=true
+            break
+        fi
+    fi
+    sleep 0.05
+done
+
+if [ "$file_ready" = true ]; then
     if [ "$mockup_mode" != "mockup" ]; then
         if command -v wl-copy >/dev/null 2>&1; then
             wl-copy < "$full_path"
@@ -49,13 +57,11 @@ if [ -f "$full_path" ]; then
         fi
     fi
 
-    # Procesar mockup
     if [ "$mockup_mode" = "mockup" ]; then
         temp_file="${full_path%.png}_temp.png"
         mockup_file="${full_path%.png}_mockup.png"
         mockup_success=true
 
-        # Redondear esquinas y transparencia
         if [ "$mockup_success" = true ]; then
             magick "$full_path" \
                 \( +clone -alpha extract -draw 'fill black polygon 0,0 0,20 20,0 fill white circle 20,20 20,0' \
@@ -64,7 +70,6 @@ if [ -f "$full_path" ]; then
                 \) -alpha off -compose CopyOpacity -composite "$temp_file" || mockup_success=false
         fi
 
-        # Añadir sombra
         if [ "$mockup_success" = true ]; then
             magick "$temp_file" \
                 \( +clone -background black -shadow 60x20+0+10 -alpha set -channel A -evaluate multiply 1 +channel \) \
@@ -80,7 +85,7 @@ if [ -f "$full_path" ]; then
                 xclip -selection clipboard -t image/png < "$full_path"
             fi
         else
-            echo "Warning: Mockup processing failed, manteniendo original." >&2
+            echo "Warning: Mockup processing failed, keeping original." >&2
             rm -f "$temp_file" "$mockup_file"
             if [ "$mockup_mode" = "mockup" ]; then
                 if command -v wl-copy >/dev/null 2>&1; then
@@ -100,6 +105,10 @@ if [ -f "$full_path" ]; then
         edit) swappy -f "$full_path" ;;
         open) xdg-open "$save_dir" ;;
     esac
+    
+    exit 0
+
 else
-    notify-send -a "Ax-Shell" "Screenshot Aborted"
+    notify-send -a "Ax-Shell" "Screenshot Aborted" "File was not created or released in time."
+    exit 1
 fi
