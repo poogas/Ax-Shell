@@ -127,7 +127,6 @@
         cava
         cliphist
         gnome-bluetooth
-        gpu-screen-recorder
         grimblast
         hyprpicker
         hyprshot
