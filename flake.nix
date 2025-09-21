@@ -129,8 +129,6 @@
         gnome-bluetooth
         gpu-screen-recorder
         grimblast
-        hypridle
-        hyprlock
         hyprpicker
         hyprshot
         hyprsunset
