@@ -403,6 +403,7 @@ in
       pkgs.cliphist
       pkgs.swww
       pkgs.matugen
+      pkgs.brightnessctl
       cfg.settings.cursor.package
     ];
 
