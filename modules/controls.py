@@ -16,18 +16,16 @@ from services.brightness import Brightness
 class VolumeSlider(Scale):
     def __init__(self, **kwargs):
         super().__init__(
-            name="control-slider",
-            orientation="h",
-            h_expand=True,
-            h_align="fill",
-            has_origin=True,
-            increments=(0.01, 0.1),
-            **kwargs,
+            name="control-slider", orientation="h", h_expand=True, h_align="fill",
+            has_origin=True, increments=(0.01, 0.1), **kwargs,
         )
         self.audio = Audio()
+        self._is_programmatic_change = False
+
         self.audio.connect("notify::speaker", self.on_new_speaker)
         if self.audio.speaker:
             self.audio.speaker.connect("changed", self.on_speaker_changed)
+        
         self.connect("value-changed", self.on_value_changed)
         self.add_style_class("vol")
         self.on_speaker_changed()
@@ -38,13 +36,20 @@ class VolumeSlider(Scale):
             self.on_speaker_changed()
 
     def on_value_changed(self, _):
+        if self._is_programmatic_change:
+            return
         if self.audio.speaker:
-            self.audio.speaker.volume = self.value * 100
+            self.audio.speaker.volume = self.get_value() * 100
 
     def on_speaker_changed(self, *_):
         if not self.audio.speaker:
             return
-        self.value = self.audio.speaker.volume / 100
+        
+        new_value = self.audio.speaker.volume / 100
+        if abs(self.get_value() - new_value) > 0.001:
+            self._is_programmatic_change = True
+            self.set_value(new_value)
+            self._is_programmatic_change = False
 
         if self.audio.speaker.muted:
             self.add_style_class("muted")
@@ -54,17 +59,16 @@ class VolumeSlider(Scale):
 class MicSlider(Scale):
     def __init__(self, **kwargs):
         super().__init__(
-            name="control-slider",
-            orientation="h",
-            h_expand=True,
-            has_origin=True,
-            increments=(0.01, 0.1),
-            **kwargs,
+            name="control-slider", orientation="h", h_expand=True, has_origin=True,
+            increments=(0.01, 0.1), **kwargs,
         )
         self.audio = Audio()
+        self._is_programmatic_change = False
+
         self.audio.connect("notify::microphone", self.on_new_microphone)
         if self.audio.microphone:
             self.audio.microphone.connect("changed", self.on_microphone_changed)
+        
         self.connect("value-changed", self.on_value_changed)
         self.add_style_class("mic")
         self.on_microphone_changed()
@@ -75,20 +79,25 @@ class MicSlider(Scale):
             self.on_microphone_changed()
 
     def on_value_changed(self, _):
+        if self._is_programmatic_change:
+            return
         if self.audio.microphone:
-            self.audio.microphone.volume = self.value * 100
+            self.audio.microphone.volume = self.get_value() * 100
 
     def on_microphone_changed(self, *_):
         if not self.audio.microphone:
             return
-        self.value = self.audio.microphone.volume / 100
-
+        
+        new_value = self.audio.microphone.volume / 100
+        if abs(self.get_value() - new_value) > 0.001:
+            self._is_programmatic_change = True
+            self.set_value(new_value)
+            self._is_programmatic_change = False
 
         if self.audio.microphone.muted:
             self.add_style_class("muted")
         else:
             self.remove_style_class("muted")
-
 
 class BrightnessSlider(Scale):
     def __init__(self, **kwargs):
@@ -97,74 +106,44 @@ class BrightnessSlider(Scale):
             orientation="h",
             h_expand=True,
             has_origin=True,
-            increments=(5, 10),
+            digits=0,
             **kwargs,
         )
         self.client = Brightness.get_initial()
+        self._is_programmatic_change = False
         
         self.set_range(0, self.client.max_screen)
+        
+        adjustment = self.get_adjustment()
+        adjustment.set_step_increment(1)
+        adjustment.set_page_increment(10)
+
         self.set_value(self.client.screen_brightness)
         self.add_style_class("brightness")
 
-        self._pending_value = None
-        self._update_source_id = None
-        self._updating_from_brightness = False
-
-        self.connect("change-value", self.on_scale_move)
-        self.connect("scroll-event", self.on_scroll)
+        self.connect("value-changed", self.on_value_changed)
         self.client.connect("screen", self.on_brightness_changed)
         self.on_brightness_changed(None, None)
 
-    def on_scale_move(self, widget, scroll, moved_pos):
-        if self._updating_from_brightness:
-            return False
-        self._pending_value = moved_pos
-        if self._update_source_id is None:
-            self._update_source_id = GLib.idle_add(self._update_brightness_callback)
-        return False
+    def on_value_changed(self, _):
+        if self._is_programmatic_change:
+            return
 
-    def _update_brightness_callback(self):
-        if self._pending_value is not None:
-            value_to_set = self._pending_value
-            self._pending_value = None
-            if value_to_set != self.client.screen_brightness:
-                self.client.screen_brightness = value_to_set
-            return True
-        else:
-            self._update_source_id = None
-            return False
-
-    def on_scroll(self, widget, event):
-        current_value = self.get_value()
-        step_size = 1
-        if event.direction == Gdk.ScrollDirection.SMOOTH:
-            if event.delta_y < 0:
-                new_value = min(current_value + step_size, self.client.max_screen)
-            elif event.delta_y > 0:
-                new_value = max(current_value - step_size, 0)
-            else:
-                return False
-        else:
-            if event.direction == Gdk.ScrollDirection.UP:
-                new_value = min(current_value + step_size, self.client.max_screen)
-            elif event.direction == Gdk.ScrollDirection.DOWN:
-                new_value = max(current_value - step_size, 0)
-            else:
-                return False
-        self.set_value(new_value)
-        return True
-
+        self.client.screen_brightness = self.get_value()
+    
     def on_brightness_changed(self, client, _):
-        self._updating_from_brightness = True
-        self.set_value(self.client.screen_brightness)
-        self._updating_from_brightness = False
+        new_value = self.client.screen_brightness
+        
+        if int(self.get_value()) != new_value:
+            self._is_programmatic_change = True
+            self.set_value(new_value)
+            self._is_programmatic_change = False
+            
         if self.client.max_screen > 0:
-            percentage = int((self.client.screen_brightness / self.client.max_screen) * 100)
+            percentage = int((new_value / self.client.max_screen) * 100)
             self.set_tooltip_text(f"{percentage}%")
 
     def destroy(self):
-        if self._update_source_id is not None:
-            GLib.source_remove(self._update_source_id)
         super().destroy()
 
 class BrightnessSmall(Box):
@@ -189,11 +168,15 @@ class BrightnessSmall(Box):
         self.add(self.event_box)
         self.add_events(Gdk.EventMask.SCROLL_MASK | Gdk.EventMask.SMOOTH_SCROLL_MASK)
 
-        self._updating_from_brightness = False
-        self._pending_value = None
+        # Флаг для отслеживания прямого взаимодействия пользователя
+        self._is_user_scrolling = False
         self._update_source_id = None
+        
+        # Убрали _updating_from_brightness, так как новая логика делает его ненужным
+        # Убрали _pending_value, так как значение теперь берется напрямую из progress_bar
 
-        self.progress_bar.connect("notify::value", self.on_progress_value_changed)
+        # Сигнал от progress_bar больше не нужен, мы управляем всем из on_scroll
+        # self.progress_bar.connect("notify::value", self.on_progress_value_changed)
         self.brightness.connect("screen", self.on_brightness_changed)
         self.on_brightness_changed()
 
@@ -209,33 +192,48 @@ class BrightnessSmall(Box):
             new_norm = max(current_norm - (step_size / self.brightness.max_screen), 0)
         else:
             return
+        
+        # Устанавливаем флаг, что пользователь взаимодействует с виджетом
+        self._is_user_scrolling = True
+        
+        # Оптимистично обновляем UI
         self.progress_bar.value = new_norm
 
-    def on_progress_value_changed(self, widget, pspec):
-        if self._updating_from_brightness:
-            return
-        new_norm = widget.value
-        new_brightness = int(new_norm * self.brightness.max_screen)
-        self._pending_value = new_brightness
-        if self._update_source_id is None:
-            self._update_source_id = GLib.timeout_add(50, self._update_brightness_callback)
+        # Сбрасываем предыдущий таймер, если он был
+        if self._update_source_id is not None:
+            GLib.source_remove(self._update_source_id)
+        
+        # Устанавливаем новый таймер для применения изменений
+        self._update_source_id = GLib.timeout_add(100, self._update_brightness_callback) # Увеличим немного задержку
 
     def _update_brightness_callback(self):
-        if self._pending_value is not None and self._pending_value != self.brightness.screen_brightness:
-            self.brightness.screen_brightness = self._pending_value
-            self._pending_value = None
-            return True
-        else:
-            self._update_source_id = None
-            return False
+        # Получаем последнее значение из progress_bar
+        new_brightness = int(self.progress_bar.value * self.brightness.max_screen)
+        
+        if new_brightness != self.brightness.screen_brightness:
+            self.brightness.screen_brightness = new_brightness
+        
+        # Сбрасываем флаг и id таймера
+        self._update_source_id = None
+        self._is_user_scrolling = False
+        
+        # Возвращаем False, чтобы таймер не повторялся
+        return False
 
     def on_brightness_changed(self, *args):
+        # Если пользователь сейчас крутит колесо, игнорируем входящие сигналы
+        if self._is_user_scrolling:
+            return
+
         if self.brightness.max_screen <= 0:
             return
+        
         normalized = self.brightness.screen_brightness / self.brightness.max_screen
-        self._updating_from_brightness = True
-        self.progress_bar.value = normalized
-        self._updating_from_brightness = False
+        
+        # Обновляем progress_bar, только если значение действительно отличается,
+        # чтобы избежать лишних перерисовок.
+        if abs(self.progress_bar.value - normalized) > 0.001:
+            self.progress_bar.value = normalized
 
         brightness_percentage = int(normalized * 100)
         if brightness_percentage >= 75:
@@ -745,7 +743,7 @@ class ControlSliders(Box):
             self._add_brightness_controls()
         else:
             self.brightness.connect("ready", self._add_brightness_controls)
-        
+
         self.show_all()
 
     def _add_brightness_controls(self, *args):
@@ -764,15 +762,15 @@ class ControlSmall(Box):
             **kwargs,
         )
         self.brightness = Brightness.get_initial()
-        
+
         self.add(VolumeSmall())
         self.add(MicSmall())
-        
+
         if self.brightness.screen_device:
             self._add_brightness_control()
         else:
             self.brightness.connect("ready", self._add_brightness_control)
-            
+
         self.show_all()
 
     def _add_brightness_control(self, *args):

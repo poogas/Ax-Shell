@@ -15,10 +15,8 @@ def exec_brightnessctl_async(args: str):
         return
     exec_shell_command_async(f"brightnessctl {args}", lambda _: None)
 
-
 class Brightness(Service):
     """Service to manage screen brightness levels."""
-
     instance = None
 
     @staticmethod
@@ -29,12 +27,10 @@ class Brightness(Service):
 
     @Signal
     def screen(self, value: int) -> None:
-        """Signal emitted when screen brightness changes."""
         pass
 
     @Signal
     def ready(self) -> None:
-        """Signal emitted when the brightness device is found and ready."""
         pass
 
     def __init__(self, **kwargs):
@@ -45,6 +41,9 @@ class Brightness(Service):
         self.screen_monitor = None
         self.init_retries = 0
         self.max_init_retries = 35
+        
+        self._is_writing = False
+        self._pending_write_value = None
 
         logger.info("[Brightness] Service created. Starting device discovery...")
         GLib.timeout_add_seconds(1, self.poll_for_device)
@@ -63,7 +62,6 @@ class Brightness(Service):
                     return GLib.SOURCE_REMOVE
                 elif self.init_retries == 0:
                     logger.info(f"Backlight device '{self.screen_device}' found, waiting for brightness file...")
-
         except FileNotFoundError:
             if self.init_retries == 0:
                 logger.info("Waiting for /sys/class/backlight to appear...")
@@ -72,30 +70,20 @@ class Brightness(Service):
         if self.init_retries > self.max_init_retries:
             logger.error(f"{Colors.ERROR}Failed to find backlight device after {self.max_init_retries} seconds.")
             return GLib.SOURCE_REMOVE
-
         return GLib.SOURCE_CONTINUE
 
     def finalize_initialization(self):
         self.max_screen = self.do_read_max_brightness(self.screen_backlight_path)
-
         if self.max_screen <= 0:
             logger.error(f"{Colors.ERROR}Could not read max_brightness for {self.screen_device}.")
             return
-
         brightness_path = os.path.join(self.screen_backlight_path, "brightness")
         self.screen_monitor = monitor_file(brightness_path)
         self.screen_monitor.connect(
             "changed",
-            lambda _, file, *args: self.emit(
-                "screen",
-                round(int(file.load_bytes()[0].get_data())),
-            ),
+            lambda _, file, *args: self.emit("screen", round(int(file.load_bytes()[0].get_data()))),
         )
-
-        logger.info(
-            f"{Colors.INFO}Brightness service initialized for device: {self.screen_device}"
-        )
-        
+        logger.info(f"{Colors.INFO}Brightness service initialized for device: {self.screen_device}")
         self.notify("screen-brightness")
         self.emit("ready")
 
@@ -122,15 +110,21 @@ class Brightness(Service):
     @screen_brightness.setter
     def screen_brightness(self, value: int):
         if not self.screen_device or self.max_screen <= 0:
-            logger.warning("Brightness service not ready, cannot set brightness.")
             return
+        self._pending_write_value = int(max(0, min(value, self.max_screen)))
+        self._process_write_queue()
 
-        value = max(0, min(value, self.max_screen))
+    def _process_write_queue(self):
+        if self._is_writing or self._pending_write_value is None:
+            return
+        
+        self._is_writing = True
+        value_to_write = self._pending_write_value
+        self._pending_write_value = None
+        
+        command = f"brightnessctl --device '{self.screen_device}' set {value_to_write}"
+        exec_shell_command_async(command, self._on_write_complete)
 
-        try:
-            exec_brightnessctl_async(f"--device '{self.screen_device}' set {value}")
-            self.emit("screen", int((value / self.max_screen) * 100))
-        except GLib.Error as e:
-            logger.error(f"{Colors.ERROR}Error setting screen brightness: {e.message}")
-        except Exception as e:
-            logger.exception(f"Unexpected error setting screen brightness: {e}")
+    def _on_write_complete(self, success: bool):
+        self._is_writing = False
+        self._process_write_queue()
