@@ -12,19 +12,8 @@ from utils.colors import Colors
 def exec_brightnessctl_async(args: str):
     if not helpers.executable_exists("brightnessctl"):
         logger.error(f"{Colors.ERROR}Command brightnessctl not found")
-
+        return
     exec_shell_command_async(f"brightnessctl {args}", lambda _: None)
-
-
-# Discover screen backlight device
-try:
-    screen_device = os.listdir("/sys/class/backlight")
-    screen_device = screen_device[0] if screen_device else ""
-except FileNotFoundError:
-    logger.error(
-        f"{Colors.ERROR}No backlight devices found, brightness control disabled"
-    )
-    screen_device = ""
 
 
 class Brightness(Service):
@@ -36,29 +25,65 @@ class Brightness(Service):
     def get_initial():
         if Brightness.instance is None:
             Brightness.instance = Brightness()
-
         return Brightness.instance
 
     @Signal
     def screen(self, value: int) -> None:
         """Signal emitted when screen brightness changes."""
-        # Implement as needed for your application
+        pass
+
+    @Signal
+    def ready(self) -> None:
+        """Signal emitted when the brightness device is found and ready."""
+        pass
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.screen_device = None
+        self.screen_backlight_path = ""
+        self.max_screen = -1
+        self.screen_monitor = None
+        self.init_retries = 0
+        self.max_init_retries = 35
 
-        # Path for screen backlight control
-        self.screen_backlight_path = f"/sys/class/backlight/{screen_device}"
+        logger.info("[Brightness] Service created. Starting device discovery...")
+        GLib.timeout_add_seconds(1, self.poll_for_device)
 
-        # Initialize maximum brightness level
+    def poll_for_device(self):
+        try:
+            devices = os.listdir("/sys/class/backlight")
+            if devices:
+                self.screen_device = devices[0]
+                self.screen_backlight_path = f"/sys/class/backlight/{self.screen_device}"
+                brightness_file = os.path.join(self.screen_backlight_path, "brightness")
+
+                if os.path.exists(brightness_file):
+                    logger.info(f"{Colors.INFO}Backlight device '{self.screen_device}' found and ready.")
+                    self.finalize_initialization()
+                    return GLib.SOURCE_REMOVE
+                elif self.init_retries == 0:
+                    logger.info(f"Backlight device '{self.screen_device}' found, waiting for brightness file...")
+
+        except FileNotFoundError:
+            if self.init_retries == 0:
+                logger.info("Waiting for /sys/class/backlight to appear...")
+
+        self.init_retries += 1
+        if self.init_retries > self.max_init_retries:
+            logger.error(f"{Colors.ERROR}Failed to find backlight device after {self.max_init_retries} seconds.")
+            return GLib.SOURCE_REMOVE
+
+        return GLib.SOURCE_CONTINUE
+
+    def finalize_initialization(self):
         self.max_screen = self.do_read_max_brightness(self.screen_backlight_path)
 
-        if screen_device == "":
+        if self.max_screen <= 0:
+            logger.error(f"{Colors.ERROR}Could not read max_brightness for {self.screen_device}.")
             return
 
-        # Monitor screen brightness file
-        self.screen_monitor = monitor_file(f"{self.screen_backlight_path}/brightness")
-
+        brightness_path = os.path.join(self.screen_backlight_path, "brightness")
+        self.screen_monitor = monitor_file(brightness_path)
         self.screen_monitor.connect(
             "changed",
             lambda _, file, *args: self.emit(
@@ -67,44 +92,44 @@ class Brightness(Service):
             ),
         )
 
-        # Log the initialization of the service
         logger.info(
-            f"{Colors.INFO}Brightness service initialized for device: {screen_device}"
+            f"{Colors.INFO}Brightness service initialized for device: {self.screen_device}"
         )
+        
+        self.notify("screen-brightness")
+        self.emit("ready")
 
     def do_read_max_brightness(self, path: str) -> int:
-        # Reads the maximum brightness value from the specified path.
         max_brightness_path = os.path.join(path, "max_brightness")
-        if os.path.exists(max_brightness_path):
+        try:
             with open(max_brightness_path) as f:
                 return int(f.readline())
-        return -1  # Return -1 if file doesn't exist, indicating an error.
+        except (IOError, ValueError, FileNotFoundError) as e:
+            logger.error(f"Error reading max brightness from {max_brightness_path}: {e}")
+            return -1
 
     @Property(int, "read-write")
     def screen_brightness(self) -> int:
-        # Property to get or set the screen brightness.
+        if not self.screen_device:
+            return -1
         brightness_path = os.path.join(self.screen_backlight_path, "brightness")
-        if os.path.exists(brightness_path):
+        try:
             with open(brightness_path) as f:
                 return int(f.readline())
-        logger.warning(
-            f"{Colors.WARNING}Brightness file does not exist: {brightness_path}"
-        )
-        return -1  # Return -1 if file doesn't exist, indicating error.
+        except (IOError, ValueError, FileNotFoundError):
+            return -1
 
     @screen_brightness.setter
     def screen_brightness(self, value: int):
-        # Setter for screen brightness property.
-        if not (0 <= value <= self.max_screen):
-            value = max(0, min(value, self.max_screen))
+        if not self.screen_device or self.max_screen <= 0:
+            logger.warning("Brightness service not ready, cannot set brightness.")
+            return
+
+        value = max(0, min(value, self.max_screen))
 
         try:
-            exec_brightnessctl_async(f"--device '{screen_device}' set {value}")
+            exec_brightnessctl_async(f"--device '{self.screen_device}' set {value}")
             self.emit("screen", int((value / self.max_screen) * 100))
-            logger.info(
-                f"{Colors.INFO}Set screen brightness to {value} "
-                f"(out of {self.max_screen})"
-            )
         except GLib.Error as e:
             logger.error(f"{Colors.ERROR}Error setting screen brightness: {e.message}")
         except Exception as e:
