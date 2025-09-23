@@ -5,6 +5,7 @@ import requests
 from fabric.widgets.button import Button
 from fabric.widgets.label import Label
 from gi.repository import GLib
+from loguru import logger
 
 gi.require_version("Gtk", "3.0")
 import config.data as data
