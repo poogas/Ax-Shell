@@ -213,7 +213,6 @@ class KanbanColumn(Gtk.Frame):
         self.scroller.set_vexpand(True)
         
         self.box.pack_start(self.scroller, True, True, 0)
-        self.box.pack_start(self.add_btn, False, False, 0)
         self.add(self.box)
         self.show_all()
 
