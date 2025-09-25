@@ -465,7 +465,6 @@ in
 
     programs.ax-shell.hyprlandExecOnce = if cfg.autostart.enable then [
       "swww-daemon"
-      "sleep 1"
       "${initialThemeGenCmd}"
       "${pkgs.uwsm}/bin/uwsm-app -- ${ax-shell-runner}/bin/ax-shell-run"
       "wl-paste --type text --watch cliphist store"
