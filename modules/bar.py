@@ -21,7 +21,6 @@ from modules.dock import Dock
 from modules.metrics import Battery, MetricsSmall, NetworkApplet
 from modules.systemprofiles import Systemprofiles
 from modules.systemtray import SystemTray
-from modules.weather import Weather
 from widgets.wayland import WaylandWindow as Window
 
 CHINESE_NUMERALS = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "〇"]
@@ -173,7 +172,6 @@ class Bar(Window):
 
         self.systray = SystemTray()
 
-        self.weather = Weather()
         self.sysprofiles = Systemprofiles()
 
         self.network = NetworkApplet()
@@ -266,7 +264,6 @@ class Bar(Window):
 
         self.rev_left = [
             item for item, visible in [
-                (self.weather, self.component_visibility.get("weather", True)),
                 (self.sysprofiles, self.component_visibility.get("sysprofiles", True)),
                 (self.network, self.component_visibility.get("network", True)),
             ] if visible
@@ -327,7 +324,6 @@ class Bar(Window):
             item for item, visible in [
                 (self.button_overview, self.component_visibility.get("button_overview", True)),
                 (self.ws_container, self.component_visibility.get("ws_container", True)),
-                (self.weather, self.component_visibility.get("weather", True)),
             ] if visible
         ]
 
@@ -432,7 +428,6 @@ class Bar(Window):
             self.language,
             self.date_time,
             self.ws_container,
-            self.weather,
             self.network,
             self.battery,
             self.metrics,

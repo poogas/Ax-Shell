@@ -111,21 +111,6 @@ menu > menuitem > label,
   font-size: 20px;
 }
 
-#weather {
-  background-color: var(--shadow);
-  padding: 0 8px;
-  min-height: 36px;
-}
-
-#weather.invert {
-  background-color: var(--surface);
-  border-radius: 12px;
-}
-
-#weather-label {
-  font-weight: bold;
-}
-
 #systray {
   background-color: var(--shadow);
   padding: 8px;

@@ -59,7 +59,6 @@ let
     bar_sysprofiles_visible = settings.bar.components.sysprofiles;
     bar_button_overview_visible = settings.bar.components.button_overview;
     bar_ws_container_visible = settings.bar.components.ws_container;
-    bar_weather_visible = settings.bar.components.weather;
     bar_battery_visible = settings.bar.components.battery;
     bar_metrics_visible = settings.bar.components.metrics;
     bar_language_visible = settings.bar.components.language;
@@ -77,6 +76,13 @@ let
     history_ignored_apps = settings.notifications.historyIgnoredApps;
     metrics_visible = settings.metrics.main;
     metrics_small_visible = settings.metrics.small;
+    dashboard_components_visibility = {
+      widgets = settings.dashboard.components.widgets;
+      pins = settings.dashboard.components.pins;
+      kanban = settings.dashboard.components.kanban;
+      wallpapers = settings.dashboard.components.wallpapers;
+      mixer = settings.dashboard.components.mixer;
+    };
   } // (
     let
       prefixes = mapAttrs' (n: v: nameValuePair "prefix_${n}" v.prefix) settings.keybindings;
@@ -210,6 +216,18 @@ in
         type = types.bool;
         default = false;
         description = "Whether to use the 12-hour time format.";
+      };
+      dashboard = {
+        components = mkEnableOption "visibility of components on the dashboard" // {
+          default = {
+            widgets = true;
+            pins = true;
+            kanban = true;
+            wallpapers = true;
+            mixer = true;
+          };
+          type = with types; attrsOf bool;
+        };
       };
       bar = {
         position = mkOption {
@@ -447,7 +465,6 @@ in
 
     programs.ax-shell.hyprlandExecOnce = if cfg.autostart.enable then [
       "swww-daemon"
-      "sleep 1"
       "${initialThemeGenCmd}"
       "${pkgs.uwsm}/bin/uwsm-app -- ${ax-shell-runner}/bin/ax-shell-run"
       "wl-paste --type text --watch cliphist store"

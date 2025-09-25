@@ -66,7 +66,7 @@ def load_config():
 if os.path.exists(CONFIG_FILE):
     with open(CONFIG_FILE, "r") as f:
         config = json.load(f)
-    
+
     WALLPAPERS_DIR = config.get("wallpapers_dir", WALLPAPERS_DIR_DEFAULT)
     BAR_POSITION = config.get("bar_position", "Top")
     VERTICAL = BAR_POSITION in ["Left", "Right"]
@@ -97,7 +97,6 @@ if os.path.exists(CONFIG_FILE):
         "sysprofiles": config.get("bar_sysprofiles_visible", True),
         "button_overview": config.get("bar_button_overview_visible", True),
         "ws_container": config.get("bar_ws_container_visible", True),
-        "weather": config.get("bar_weather_visible", True),
         "battery": config.get("bar_battery_visible", True),
         "metrics": config.get("bar_metrics_visible", True),
         "language": config.get("bar_language_visible", True),
@@ -112,6 +111,14 @@ if os.path.exists(CONFIG_FILE):
     METRICS_SMALL_VISIBLE = config.get(
         "metrics_small_visible", {"cpu": True, "ram": True, "disk": True, "gpu": True}
     )
+
+    DASHBOARD_COMPONENTS = config.get("dashboard_components_visibility", {})
+    SHOW_DASHBOARD_WIDGETS = DASHBOARD_COMPONENTS.get("widgets", True)
+    SHOW_DASHBOARD_PINS = DASHBOARD_COMPONENTS.get("pins", True)
+    SHOW_DASHBOARD_KANBAN = DASHBOARD_COMPONENTS.get("kanban", True)
+    SHOW_DASHBOARD_WALLPAPERS = DASHBOARD_COMPONENTS.get("wallpapers", True)
+    SHOW_DASHBOARD_MIXER = DASHBOARD_COMPONENTS.get("mixer", True)
+
 else:
     WALLPAPERS_DIR = WALLPAPERS_DIR_DEFAULT
     BAR_POSITION = "Top"
@@ -140,7 +147,6 @@ else:
         "button_tools": True,
         "button_overview": True,
         "ws_container": True,
-        "weather": True,
         "battery": True,
         "metrics": True,
         "language": True,
@@ -152,3 +158,9 @@ else:
     BAR_METRICS_DISKS = ["/"]
     METRICS_VISIBLE = {"cpu": True, "ram": True, "disk": True, "gpu": True}
     METRICS_SMALL_VISIBLE = {"cpu": True, "ram": True, "disk": True, "gpu": True}
+
+    SHOW_DASHBOARD_WIDGETS = True
+    SHOW_DASHBOARD_PINS = True
+    SHOW_DASHBOARD_KANBAN = True
+    SHOW_DASHBOARD_WALLPAPERS = True
+    SHOW_DASHBOARD_MIXER = True
