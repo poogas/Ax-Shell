@@ -7,7 +7,6 @@
   sysprofiles = true;
   button_overview = true;
   ws_container = true;
-  weather = true;
   battery = true;
   metrics = true;
   language = true;

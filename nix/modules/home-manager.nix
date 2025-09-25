@@ -59,7 +59,6 @@ let
     bar_sysprofiles_visible = settings.bar.components.sysprofiles;
     bar_button_overview_visible = settings.bar.components.button_overview;
     bar_ws_container_visible = settings.bar.components.ws_container;
-    bar_weather_visible = settings.bar.components.weather;
     bar_battery_visible = settings.bar.components.battery;
     bar_metrics_visible = settings.bar.components.metrics;
     bar_language_visible = settings.bar.components.language;
