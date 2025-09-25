@@ -1,5 +1,4 @@
 import math
-
 import gi
 from fabric.audio.service import Audio
 from fabric.widgets.box import Box
@@ -25,7 +24,7 @@ vertical_mode = (
 
 
 class MixerSlider(Scale):
-    def __init__(self, stream, **kwargs):
+    def __init__(self, stream, label, **kwargs):
         super().__init__(
             name="control-slider",
             orientation="h",
@@ -38,25 +37,29 @@ class MixerSlider(Scale):
         )
 
         self.stream = stream
+        self.label = label
         self._updating_from_stream = False
         self.set_value(stream.volume / 100)
 
+        self.stream_handler_id = stream.connect("changed", self.on_stream_changed)
         self.connect("value-changed", self.on_value_changed)
-        stream.connect("changed", self.on_stream_changed)
+        self.connect("destroy", self.on_destroy)
 
-        # Apply appropriate style class based on stream type
         if hasattr(stream, "type"):
             if "microphone" in stream.type.lower() or "input" in stream.type.lower():
                 self.add_style_class("mic")
             else:
                 self.add_style_class("vol")
         else:
-            # Default to volume style
             self.add_style_class("vol")
 
-        # Set initial tooltip and muted state
         self.set_tooltip_text(f"{stream.volume:.0f}%")
         self.update_muted_state()
+
+    def on_destroy(self, *args):
+        if self.stream and self.stream_handler_id > 0:
+            self.stream.disconnect(self.stream_handler_id)
+            self.stream_handler_id = 0
 
     def on_value_changed(self, _):
         if self._updating_from_stream:
@@ -70,6 +73,9 @@ class MixerSlider(Scale):
         self.value = stream.volume / 100
         self.set_tooltip_text(f"{stream.volume:.0f}%")
         self.update_muted_state()
+
+        if self.label:
+            self.label.set_label(f"[{math.ceil(stream.volume)}%] {stream.description}")
         self._updating_from_stream = False
 
     def update_muted_state(self):
@@ -77,7 +83,6 @@ class MixerSlider(Scale):
             self.add_style_class("muted")
         else:
             self.remove_style_class("muted")
-
 
 class MixerSection(Box):
     def __init__(self, title, **kwargs):
@@ -108,11 +113,12 @@ class MixerSection(Box):
         self.add(self.content_box)
 
     def update_streams(self, streams):
+        self.content_box.freeze_child_notify()
+
         for child in self.content_box.get_children():
             self.content_box.remove(child)
 
         for stream in streams:
-            # Create container with label and slider
             stream_container = Box(
                 orientation="v",
                 spacing=4,
@@ -129,15 +135,15 @@ class MixerSection(Box):
                 ellipsization="end",
                 max_chars_width=45,
             )
-
-            slider = MixerSlider(stream)
+            
+            slider = MixerSlider(stream, label)
 
             stream_container.add(label)
             stream_container.add(slider)
             self.content_box.add(stream_container)
 
+        self.content_box.thaw_child_notify()
         self.content_box.show_all()
-
 
 class Mixer(Box):
     def __init__(self, **kwargs):
@@ -148,6 +154,10 @@ class Mixer(Box):
             h_expand=True,
             v_expand=True,
         )
+
+        self._output_stream_names = set()
+        self._input_stream_names = set()
+        self._update_pending = False
 
         try:
             self.audio = Audio()
@@ -170,10 +180,8 @@ class Mixer(Box):
         )
 
         self.main_container.set_homogeneous(True)
-
         self.outputs_section = MixerSection("Outputs")
         self.inputs_section = MixerSection("Inputs")
-
         self.main_container.add(self.outputs_section)
         self.main_container.add(self.inputs_section)
 
@@ -182,29 +190,56 @@ class Mixer(Box):
             v_expand=True,
             child=self.main_container,
         )
-
         self.add(self.scrolled)
 
         self.audio.connect("changed", self.on_audio_changed)
         self.audio.connect("stream-added", self.on_audio_changed)
         self.audio.connect("stream-removed", self.on_audio_changed)
+        
+        self.schedule_update()
 
-        self.update_mixer()
+    def schedule_update(self):
+        if not self._update_pending:
+            self._update_pending = True
+            GLib.idle_add(self.update_mixer)
 
     def on_audio_changed(self, *args):
-        self.update_mixer()
-
-    def update_mixer(self):
         outputs = []
-        inputs = []
-
         if self.audio.speaker:
             outputs.append(self.audio.speaker)
-        outputs.extend(self.audio.applications)
+        outputs.extend(self.audio.applications or [])
 
+        inputs = []
         if self.audio.microphone:
             inputs.append(self.audio.microphone)
-        inputs.extend(self.audio.recorders)
+        inputs.extend(self.audio.recorders or [])
+
+        current_output_names = {stream.name for stream in outputs}
+        current_input_names = {stream.name for stream in inputs}
+
+        if (current_output_names != self._output_stream_names or
+            current_input_names != self._input_stream_names):
+            self.schedule_update()
+    
+    def update_mixer(self):
+        outputs = []
+        if self.audio.speaker:
+            outputs.append(self.audio.speaker)
+        outputs.extend(self.audio.applications or [])
+
+        inputs = []
+        if self.audio.microphone:
+            inputs.append(self.audio.microphone)
+        inputs.extend(self.audio.recorders or [])
+        
+        outputs.sort(key=lambda s: s.description)
+        inputs.sort(key=lambda s: s.description)
+        
+        self._output_stream_names = {stream.name for stream in outputs}
+        self._input_stream_names = {stream.name for stream in inputs}
 
         self.outputs_section.update_streams(outputs)
         self.inputs_section.update_streams(inputs)
+        
+        self._update_pending = False
+        return False
