@@ -1,17 +1,12 @@
-import random
-
 import gi
-from fabric.utils import get_relative_path
 from fabric.widgets.box import Box
-from fabric.widgets.image import Image
 from fabric.widgets.label import Label
 from fabric.widgets.stack import Stack
 
 import config.data as data
 
 gi.require_version("Gtk", "3.0")
-gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
+from gi.repository import GLib, Gtk
 
 import modules.icons as icons
 from modules.kanban import Kanban
@@ -36,11 +31,11 @@ class Dashboard(Box):
 
         self.notch = kwargs["notch"]
 
-        self.widgets = Widgets(notch=self.notch)
-        self.pins = Pins()
-        self.kanban = Kanban()
-        self.wallpapers = WallpaperSelector()
-        self.mixer = Mixer()
+        self.widgets = None
+        self.pins = None
+        self.kanban = None
+        self.wallpapers = None
+        self.mixer = None
 
         self.stack = Stack(
             name="stack",
@@ -59,11 +54,25 @@ class Dashboard(Box):
             spacing=8,
         )
 
-        self.stack.add_titled(self.widgets, "widgets", "Widgets")
-        self.stack.add_titled(self.pins, "pins", "Pins")
-        self.stack.add_titled(self.kanban, "kanban", "Kanban")
-        self.stack.add_titled(self.wallpapers, "wallpapers", "Wallpapers")
-        self.stack.add_titled(self.mixer, "mixer", "Mixer")
+        if data.SHOW_DASHBOARD_WIDGETS:
+            self.widgets = Widgets(notch=self.notch)
+            self.stack.add_titled(self.widgets, "widgets", "Widgets")
+
+        if data.SHOW_DASHBOARD_PINS:
+            self.pins = Pins()
+            self.stack.add_titled(self.pins, "pins", "Pins")
+
+        if data.SHOW_DASHBOARD_KANBAN:
+            self.kanban = Kanban()
+            self.stack.add_titled(self.kanban, "kanban", "Kanban")
+
+        if data.SHOW_DASHBOARD_WALLPAPERS:
+            self.wallpapers = WallpaperSelector()
+            self.stack.add_titled(self.wallpapers, "wallpapers", "Wallpapers")
+
+        if data.SHOW_DASHBOARD_MIXER:
+            self.mixer = Mixer()
+            self.stack.add_titled(self.mixer, "mixer", "Mixer")
 
         self.switcher.set_stack(self.stack)
         self.switcher.set_hexpand(True)
@@ -74,6 +83,9 @@ class Dashboard(Box):
 
         self.add(self.switcher)
         self.add(self.stack)
+        
+        if len(self.stack.get_children()) <= 1:
+            self.switcher.set_visible(False)
 
         if data.PANEL_THEME == "Panel" and (
             data.BAR_POSITION in ["Left", "Right"]
@@ -84,14 +96,18 @@ class Dashboard(Box):
         self.show_all()
 
     def _setup_switcher_icons(self):
-        icon_details_map = {
-            "Widgets": {"icon": icons.widgets, "name": "widgets"},
-            "Pins": {"icon": icons.pins, "name": "pins"},
-            "Kanban": {"icon": icons.kanban, "name": "kanban"},
-            "Wallpapers": {"icon": icons.wallpapers, "name": "wallpapers"},
-            "Mixer": {"icon": icons.speaker, "name": "mixer"},
-        }
-
+        icon_details_map = {}
+        if self.widgets:
+            icon_details_map["Widgets"] = {"icon": icons.widgets, "name": "widgets"}
+        if self.pins:
+            icon_details_map["Pins"] = {"icon": icons.pins, "name": "pins"}
+        if self.kanban:
+            icon_details_map["Kanban"] = {"icon": icons.kanban, "name": "kanban"}
+        if self.wallpapers:
+            icon_details_map["Wallpapers"] = {"icon": icons.wallpapers, "name": "wallpapers"}
+        if self.mixer:
+            icon_details_map["Mixer"] = {"icon": icons.speaker, "name": "mixer"}
+        
         buttons = self.switcher.get_children()
         for btn in buttons:
             if isinstance(btn, Gtk.ToggleButton):
@@ -119,12 +135,16 @@ class Dashboard(Box):
 
     def go_to_next_child(self):
         children = self.stack.get_children()
+        if not children:
+            return
         current_index = self.get_current_index(children)
         next_index = (current_index + 1) % len(children)
         self.stack.set_visible_child(children[next_index])
 
     def go_to_previous_child(self):
         children = self.stack.get_children()
+        if not children:
+            return
         current_index = self.get_current_index(children)
         previous_index = (current_index - 1 + len(children)) % len(children)
         self.stack.set_visible_child(children[previous_index])
@@ -135,19 +155,19 @@ class Dashboard(Box):
 
     def on_visible_child_changed(self, stack, param):
         visible = stack.get_visible_child()
-        if visible == self.wallpapers:
+        if self.wallpapers and visible == self.wallpapers:
             self.wallpapers.search_entry.set_text("")
             self.wallpapers.search_entry.grab_focus()
 
     def go_to_section(self, section_name):
         """Navigate to a specific section in the dashboard."""
-        if section_name == "widgets":
+        if section_name == "widgets" and self.widgets:
             self.stack.set_visible_child(self.widgets)
-        elif section_name == "pins":
+        elif section_name == "pins" and self.pins:
             self.stack.set_visible_child(self.pins)
-        elif section_name == "kanban":
+        elif section_name == "kanban" and self.kanban:
             self.stack.set_visible_child(self.kanban)
-        elif section_name == "wallpapers":
+        elif section_name == "wallpapers" and self.wallpapers:
             self.stack.set_visible_child(self.wallpapers)
-        elif section_name == "mixer":
+        elif section_name == "mixer" and self.mixer:
             self.stack.set_visible_child(self.mixer)

@@ -77,6 +77,13 @@ let
     history_ignored_apps = settings.notifications.historyIgnoredApps;
     metrics_visible = settings.metrics.main;
     metrics_small_visible = settings.metrics.small;
+    dashboard_components_visibility = {
+      widgets = settings.dashboard.components.widgets;
+      pins = settings.dashboard.components.pins;
+      kanban = settings.dashboard.components.kanban;
+      wallpapers = settings.dashboard.components.wallpapers;
+      mixer = settings.dashboard.components.mixer;
+    };
   } // (
     let
       prefixes = mapAttrs' (n: v: nameValuePair "prefix_${n}" v.prefix) settings.keybindings;
@@ -210,6 +217,18 @@ in
         type = types.bool;
         default = false;
         description = "Whether to use the 12-hour time format.";
+      };
+      dashboard = {
+        components = mkEnableOption "visibility of components on the dashboard" // {
+          default = {
+            widgets = true;
+            pins = true;
+            kanban = true;
+            wallpapers = true;
+            mixer = true;
+          };
+          type = with types; attrsOf bool;
+        };
       };
       bar = {
         position = mkOption {
