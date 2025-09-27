@@ -20,6 +20,8 @@ import modules.icons as icons
 from widgets.rounded_image import CustomImage
 from widgets.wayland import WaylandWindow as Window
 
+import traceback
+
 PERSISTENT_DIR = f"/tmp/{data.APP_NAME}/notifications"
 PERSISTENT_HISTORY_FILE = os.path.join(PERSISTENT_DIR, "notification_history.json")
 
@@ -1108,7 +1110,6 @@ class NotificationHistory(Box):
         self.rebuild_with_separators()
         self.update_no_notifications_label_visibility()
 
-
 class NotificationContainer(Box):
     def __init__(
         self,
@@ -1116,12 +1117,15 @@ class NotificationContainer(Box):
         revealer_transition_type: str = "slide-down",
     ):
         super().__init__(name="notification-container-main", orientation="v", spacing=4)
+        logger.debug("NotificationContainer: __init__ STARTED")
         self.notification_history = notification_history_instance
 
         self._server = Notifications()
         self._server.connect("notification-added", self.on_new_notification)
-        self._pending_removal = False
+
         self._is_destroying = False
+        self._destroy_timer_id = None
+        self._last_state_log = ""
 
         self.stack = Gtk.Stack(
             name="notification-stack",
@@ -1191,76 +1195,190 @@ class NotificationContainer(Box):
         self.current_index = 0
         self.update_navigation_buttons()
         self._destroyed_notifications = set()
+        logger.debug("NotificationContainer: __init__ FINISHED")
+        self._log_state("init")
+
+    def _log_state(self, event_name: str):
+        try:
+            state_str = (
+                f"STATE at '{event_name}': "
+                f"count={len(self.notifications)}, "
+                f"current_index={self.current_index}, "
+                f"is_destroying={self._is_destroying}, "
+                f"has_timer={self._destroy_timer_id is not None}, "
+                f"revealed={self.main_revealer.get_reveal_child()}"
+            )
+            if state_str != self._last_state_log:
+                logger.debug(state_str)
+                self._last_state_log = state_str
+        except Exception as e:
+            logger.error(f"Failed to log state: {e}")
 
     def on_new_notification(self, fabric_notif, id):
-        notification_history_instance = self.notification_history
-        if notification_history_instance.do_not_disturb_enabled:
-            logger.info(
-                "Do Not Disturb mode enabled: adding notification directly to history."
-            )
+        logger.info(f"on_new_notification STARTED for ID: {id}")
+        self._log_state("new_notif_start")
+
+        try:
+            if self._destroy_timer_id is not None:
+                logger.warning("CANCELLING pending container destruction due to new notification.")
+                GLib.source_remove(self._destroy_timer_id)
+                self._destroy_timer_id = None
+            self._is_destroying = False
+
+            if self.notification_history.do_not_disturb_enabled:
+                logger.info("Do Not Disturb enabled. Adding notification directly to history.")
+                notification = fabric_notif.get_notification_from_id(id)
+                new_box = NotificationBox(notification)
+                if notification.image_pixbuf:
+                    cache_notification_pixbuf(new_box)
+                self.notification_history.add_notification(new_box)
+                return
+
             notification = fabric_notif.get_notification_from_id(id)
+            if not notification:
+                logger.error(f"Could not get notification object for ID {id}. Aborting.")
+                return
+
             new_box = NotificationBox(notification)
-            if notification.image_pixbuf:
-                cache_notification_pixbuf(new_box)
-            notification_history_instance.add_notification(new_box)
-            return
+            new_box.set_container(self)
+            notification.connect("closed", self.on_notification_closed)
 
-        notification = fabric_notif.get_notification_from_id(id)
-        new_box = NotificationBox(notification)
-        new_box.set_container(self)
-        notification.connect("closed", self.on_notification_closed)
+            app_name = notification.app_name
+            if app_name in get_limited_apps_history():
+                self.notification_history.clear_history_for_app(app_name)
+                existing_notification_index = next((i for i, box in enumerate(self.notifications) if box.notification.app_name == app_name), -1)
+                if existing_notification_index != -1:
+                    old_notification_box = self.notifications.pop(existing_notification_index)
+                    self.stack.remove(old_notification_box)
+                    GLib.idle_add(old_notification_box.destroy)
 
-        app_name = notification.app_name
-        if app_name in get_limited_apps_history():
-            notification_history_instance.clear_history_for_app(app_name)
-
-            existing_notification_index = -1
-            for index, existing_box in enumerate(self.notifications):
-                if existing_box.notification.app_name == app_name:
-                    existing_notification_index = index
-                    break
-
-            if existing_notification_index != -1:
-                old_notification_box = self.notifications.pop(
-                    existing_notification_index
-                )
-                self.stack.remove(old_notification_box)
-                old_notification_box.destroy()
-
-                self.stack.add_named(new_box, str(id))
-                self.notifications.append(new_box)
-                self.current_index = len(self.notifications) - 1
-                self.stack.set_visible_child(new_box)
-            else:
-                while len(self.notifications) >= 5:
-                    oldest_notification = self.notifications[0]
-                    notification_history_instance.add_notification(oldest_notification)
-                    self.stack.remove(oldest_notification)
-                    self.notifications.pop(0)
-                    if self.current_index > 0:
-                        self.current_index -= 1
-                self.stack.add_named(new_box, str(id))
-                self.notifications.append(new_box)
-                self.current_index = len(self.notifications) - 1
-                self.stack.set_visible_child(new_box)
-        else:
             while len(self.notifications) >= 5:
-                oldest_notification = self.notifications[0]
-                notification_history_instance.add_notification(oldest_notification)
+                logger.debug("Limit of 5 reached. Removing oldest notification.")
+                oldest_notification = self.notifications.pop(0)
+                self.notification_history.add_notification(oldest_notification)
                 self.stack.remove(oldest_notification)
-                self.notifications.pop(0)
-                if self.current_index > 0:
-                    self.current_index -= 1
+
             self.stack.add_named(new_box, str(id))
             self.notifications.append(new_box)
             self.current_index = len(self.notifications) - 1
             self.stack.set_visible_child(new_box)
 
-        for notification_box in self.notifications:
-            notification_box.start_timeout()
-        self.main_revealer.show_all()
-        self.main_revealer.set_reveal_child(True)
-        self.update_navigation_buttons()
+            for notification_box in self.notifications:
+                notification_box.start_timeout()
+
+            self.main_revealer.show_all()
+            self.main_revealer.set_reveal_child(True)
+            self.update_navigation_buttons()
+
+        except Exception:
+            logger.exception("CRITICAL ERROR in on_new_notification! State might be corrupted.")
+
+        logger.info(f"on_new_notification FINISHED for ID: {id}")
+        self._log_state("new_notif_end")
+        self._run_sanity_checks("on_new_notification")
+
+    def on_notification_closed(self, notification, reason):
+        logger.info(f"on_notification_closed STARTED for ID: {notification.id}, reason: {reason}")
+        self._log_state("notif_closed_start")
+
+        try:
+            if notification.id in self._destroyed_notifications:
+                logger.warning(f"Notification {notification.id} already processed. Ignoring duplicate 'closed' signal.")
+                return
+            self._destroyed_notifications.add(notification.id)
+
+            notif_to_remove_tuple = next(
+                ((i, box) for i, box in enumerate(self.notifications) if box.notification.id == notification.id),
+                None
+            )
+
+            if not notif_to_remove_tuple:
+                logger.error(f"Tried to close notification {notification.id}, but it was not found in the active list!")
+                self._log_state("notif_closed_not_found")
+                return
+
+            i, notif_box = notif_to_remove_tuple
+
+            is_dismissed = str(reason) == "NotificationCloseReason.DISMISSED_BY_USER"
+            if is_dismissed:
+                logger.debug(f"Notif {notification.id} was dismissed. It will be destroyed.")
+            else:
+                logger.debug(f"Notif {notification.id} expired/closed. Moving to history.")
+                notif_box.set_is_history(True)
+                self.notification_history.add_notification(notif_box)
+                notif_box.stop_timeout()
+
+            logger.debug(f"Removing widget for notif {notification.id} from Gtk.Stack.")
+            self.stack.remove(notif_box)
+            self.notifications.pop(i)
+
+            if is_dismissed:
+                logger.debug(f"Scheduling destruction for notif {notification.id} on idle.")
+                GLib.idle_add(notif_box.destroy)
+
+            if not self.notifications:
+                logger.info("Last notification closed. Revealing and scheduling container destruction.")
+                self._is_destroying = True
+                self.main_revealer.set_reveal_child(False)
+                self._destroy_timer_id = GLib.timeout_add(
+                    self.main_revealer.get_transition_duration() + 50,
+                    self._destroy_container
+                )
+            else:
+                new_index = max(0, self.current_index - 1) if i <= self.current_index else self.current_index
+                self.current_index = new_index
+                logger.debug(f"Notifications remain. Switching to index {self.current_index}")
+                if self.current_index < len(self.notifications):
+                   self.stack.set_visible_child(self.notifications[self.current_index])
+                else:
+                    logger.error(f"STATE INCONSISTENCY: current_index {self.current_index} is out of bounds for notifications list of size {len(self.notifications)}")
+
+            self.update_navigation_buttons()
+
+        except Exception:
+            logger.exception("CRITICAL ERROR in on_notification_closed! State might be corrupted.")
+
+        logger.info(f"on_notification_closed FINISHED for ID: {notification.id}")
+        self._log_state("notif_closed_end")
+        self._run_sanity_checks("on_notification_closed")
+
+    def _destroy_container(self):
+        logger.info("_destroy_container STARTED")
+        try:
+            self.notifications.clear()
+            self._destroyed_notifications.clear()
+            for child in self.stack.get_children():
+                logger.debug(f"Force removing leftover widget {child.get_name()} from stack.")
+                self.stack.remove(child)
+                GLib.idle_add(child.destroy)
+            self.current_index = 0
+            logger.info("Container cleanup complete.")
+        except Exception:
+            logger.exception("CRITICAL ERROR during container destruction!")
+        finally:
+            self._is_destroying = False
+            self._destroy_timer_id = None
+            self._log_state("container_destroyed")
+            return False
+
+    def _run_sanity_checks(self, origin: str):
+        try:
+            num_notifs = len(self.notifications)
+            num_children = len(self.stack.get_children())
+
+            if num_notifs != num_children:
+                logger.error(
+                    f"STATE INCONSISTENCY detected from '{origin}': "
+                    f"internal list has {num_notifs} items, but Gtk.Stack has {num_children} children!"
+                )
+
+            if num_notifs > 0 and not (0 <= self.current_index < num_notifs):
+                 logger.error(
+                    f"STATE INCONSISTENCY detected from '{origin}': "
+                    f"current_index ({self.current_index}) is out of bounds for list of size {num_notifs}!"
+                )
+        except Exception as e:
+            logger.error(f"Failed to run sanity checks: {e}")
 
     def show_previous(self, *args):
         if self.current_index > 0:
@@ -1279,93 +1397,6 @@ class NotificationContainer(Box):
         self.next_button.set_sensitive(self.current_index < len(self.notifications) - 1)
         should_reveal = len(self.notifications) > 1
         self.navigation_revealer.set_reveal_child(should_reveal)
-
-    def on_notification_closed(self, notification, reason):
-        if self._is_destroying:
-            return
-        if notification.id in self._destroyed_notifications:
-            return
-        self._destroyed_notifications.add(notification.id)
-        try:
-            logger.info(f"Notification {notification.id} closing with reason: {reason}")
-            notif_to_remove = None
-            for i, notif_box in enumerate(self.notifications):
-                if notif_box.notification.id == notification.id:
-                    notif_to_remove = (i, notif_box)
-                    break
-            if not notif_to_remove:
-                return
-            i, notif_box = notif_to_remove
-            reason_str = str(reason)
-
-            notification_history_instance = self.notification_history
-
-            if reason_str == "NotificationCloseReason.DISMISSED_BY_USER":
-                logger.info(
-                    f"Cleaning up resources for dismissed notification {notification.id}"
-                )
-                notif_box.destroy()
-            elif (
-                reason_str == "NotificationCloseReason.EXPIRED"
-                or reason_str == "NotificationCloseReason.CLOSED"
-                or reason_str == "NotificationCloseReason.UNDEFINED"
-            ):
-                logger.info(
-                    f"Adding notification {notification.id} to history (reason: {reason_str})"
-                )
-                notif_box.set_is_history(True)
-                notification_history_instance.add_notification(notif_box)
-                notif_box.stop_timeout()
-            else:
-                logger.warning(
-                    f"Unknown close reason: {reason_str} for notification {notification.id}. Defaulting to destroy."
-                )
-                notif_box.destroy()
-
-            if len(self.notifications) == 1:
-                self._is_destroying = True
-                self.main_revealer.set_reveal_child(False)
-                GLib.timeout_add(
-                    self.main_revealer.get_transition_duration(),
-                    self._destroy_container,
-                )
-                return
-
-            new_index = i
-            if i == self.current_index:
-                new_index = max(0, i - 1)
-            elif i < self.current_index:
-                new_index = self.current_index - 1
-
-            if notif_box.get_parent() == self.stack:
-                self.stack.remove(notif_box)
-            self.notifications.pop(i)
-
-            if new_index >= len(self.notifications) and len(self.notifications) > 0:
-                new_index = len(self.notifications) - 1
-
-            self.current_index = new_index
-
-            if len(self.notifications) > 0:
-                self.stack.set_visible_child(self.notifications[self.current_index])
-
-            self.update_navigation_buttons()
-        except Exception as e:
-            logger.error(f"Error closing notification: {e}")
-
-    def _destroy_container(self):
-        try:
-            self.notifications.clear()
-            self._destroyed_notifications.clear()
-            for child in self.stack.get_children():
-                self.stack.remove(child)
-                child.destroy()
-            self.current_index = 0
-        except Exception as e:
-            logger.error(f"Error cleaning up the container: {e}")
-        finally:
-            self._is_destroying = False
-            return False
 
     def pause_and_reset_all_timeouts(self):
         if self._is_destroying:
@@ -1391,7 +1422,6 @@ class NotificationContainer(Box):
         notifications_to_close = self.notifications.copy()
         for notification_box in notifications_to_close:
             notification_box.notification.close("dismissed-by-user")
-
 
 class NotificationPopup(Window):
     def __init__(self, **kwargs):
