@@ -9,6 +9,8 @@ let
   axShellConfigDir = "${config.xdg.configHome}/ax-shell";
   axSendCmd = "${pkgs.ax-send}/bin/ax-send";
 
+  defaultWallpaperPath = "${cfg.package}/share/ax-shell/assets/wallpapers_example/example-1.jpg";
+
   defaultMatugenSettings = {
     config = {
       reload_apps = true;
@@ -146,15 +148,25 @@ let
   initialThemeGenCmd = pkgs.writeShellScript "matugen-initial-gen" ''
     HYPR_COLORS_PATH="${axShellConfigDir}/config/hypr/colors.conf"
     CSS_COLORS_PATH="${axShellConfigDir}/styles/colors.css"
+    CURRENT_WALL_PATH="${axShellConfigDir}/current.wall"
+    DEFAULT_WALLPAPER="${defaultWallpaperPath}"
+
+    if [ ! -L "$CURRENT_WALL_PATH" ] || [ ! -e "$CURRENT_WALL_PATH" ]; then
+      echo "Ax-Shell: current.wall is missing or broken. Re-linking and setting default wallpaper."
+      mkdir -p "$(dirname "$CURRENT_WALL_PATH")"
+      rm -f "$CURRENT_WALL_PATH"
+      ln -s "$DEFAULT_WALLPAPER" "$CURRENT_WALL_PATH"
+
+      ${pkgs.matugen}/bin/matugen image "$CURRENT_WALL_PATH"
+    fi
 
     if [ ! -f "$HYPR_COLORS_PATH" ] || [ ! -f "$CSS_COLORS_PATH" ]; then
-      echo "Ax-Shell: Color scheme not found. Generating from default wallpaper."
+      echo "Ax-Shell: Color scheme not found. Generating from wallpaper."
       mkdir -p "$(dirname "$HYPR_COLORS_PATH")"
       mkdir -p "$(dirname "$CSS_COLORS_PATH")"
-      ${pkgs.matugen}/bin/matugen image "${cfg.settings.defaultWallpaper}"
+      ${pkgs.matugen}/bin/matugen image "$CURRENT_WALL_PATH"
     fi
   '';
-
 in
 {
   options.programs.ax-shell = {
@@ -196,11 +208,6 @@ in
         type = types.str;
         default = "${cfg.package}/share/ax-shell/assets/wallpapers_example";
         description = "Path to the wallpapers directory.";
-      };
-      defaultWallpaper = mkOption {
-        type = types.path;
-        default = "${cfg.package}/share/ax-shell/assets/wallpapers_example/example-1.jpg";
-        description = "Path to the image to be used as the default wallpaper.";
       };
       cornersVisible = mkOption {
         type = types.bool;
@@ -429,11 +436,6 @@ in
       source = let
         finalMatugenSettings = lib.recursiveUpdate cfg.matugen.settings cfg.matugen.extraSettings;
       in matugenTOMLFormat.generate "matugen-config.toml" finalMatugenSettings;
-    };
-
-    home.file."${axShellConfigDir}/current.wall" = {
-      source = cfg.settings.defaultWallpaper;
-      force = true;
     };
 
     home.file."${axShellConfigDir}/face.icon" = {
