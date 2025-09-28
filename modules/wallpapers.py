@@ -34,7 +34,7 @@ class WallpaperSelector(Box):
             for entry in entries:
                 if entry.is_file() and self._is_image(entry.name):
                     if entry.name != entry.name.lower() or " " in entry.name:
-                        new_name = entry.name.lower().replace(" ", "-")
+                        new_name = file_name.lower().replace(" ", "-").replace("_", "-")
                         full_path = os.path.join(data.WALLPAPERS_DIR, entry.name)
                         new_full_path = os.path.join(data.WALLPAPERS_DIR, new_name)
                         try:
@@ -47,6 +47,7 @@ class WallpaperSelector(Box):
         self.thumbnail_queue = []
         self.executor = ThreadPoolExecutor(max_workers=4)
         self.selected_index = -1
+        self.processing_queue = set()
 
         self.viewport = Gtk.IconView(name="wallpaper-icons")
         self.viewport.set_model(Gtk.ListStore(GdkPixbuf.Pixbuf, str))
@@ -233,36 +234,55 @@ class WallpaperSelector(Box):
 
     def on_directory_changed(self, monitor, file, other_file, event_type):
         file_name = file.get_basename()
+
         if event_type == Gio.FileMonitorEvent.DELETED:
             if file_name in self.files:
                 self.files.remove(file_name)
+                self.thumbnails = [(p, n) for p, n in self.thumbnails if n != file_name]
+                GLib.idle_add(self.arrange_viewport, self.search_entry.get_text())
                 cache_path = self._get_cache_path(file_name)
                 if os.path.exists(cache_path):
                     try: os.remove(cache_path)
                     except Exception as e: print(f"Error deleting cache {cache_path}: {e}")
-                self.thumbnails = [(p, n) for p, n in self.thumbnails if n != file_name]
-                GLib.idle_add(self.arrange_viewport, self.search_entry.get_text())
-        elif event_type == Gio.FileMonitorEvent.CREATED:
-            if self._is_image(file_name):
-                new_name = file_name.lower().replace(" ", "-")
-                full_path = os.path.join(data.WALLPAPERS_DIR, file_name)
-                new_full_path = os.path.join(data.WALLPAPERS_DIR, new_name)
-                if new_name != file_name:
-                    try:
-                        os.rename(full_path, new_full_path)
-                        file_name = new_name
-                    except Exception as e: print(f"Error renaming file {full_path}: {e}")
-                if file_name not in self.files:
-                    self.files.append(file_name)
-                    self.files.sort()
-                    self.executor.submit(self._process_file, file_name)
-        elif event_type == Gio.FileMonitorEvent.CHANGED:
-            if self._is_image(file_name) and file_name in self.files:
-                cache_path = self._get_cache_path(file_name)
-                if os.path.exists(cache_path):
-                    try: os.remove(cache_path)
-                    except Exception as e: print(f"Error deleting cache for changed file {file_name}: {e}")
-                self.executor.submit(self._process_file, file_name)
+            return
+
+        if event_type in (Gio.FileMonitorEvent.CREATED, Gio.FileMonitorEvent.CHANGED) and self._is_image(file_name):
+            if file_name not in self.processing_queue:
+                self.processing_queue.add(file_name)
+                GLib.timeout_add(500, self._process_queued_file, file_name)
+
+    def _process_queued_file(self, file_name):
+        if file_name in self.processing_queue:
+            self.processing_queue.remove(file_name)
+
+        original_full_path = os.path.join(data.WALLPAPERS_DIR, file_name)
+        
+        if not os.path.exists(original_full_path):
+            return GLib.SOURCE_REMOVE # Завершаем таймер
+
+        normalized_name = file_name.lower().replace(" ", "-").replace("__", "_").replace("_", "-")
+        
+        final_name = file_name
+        
+        if file_name != normalized_name:
+            new_full_path = os.path.join(data.WALLPAPERS_DIR, normalized_name)
+            try:
+                if not os.path.exists(new_full_path):
+                    os.rename(original_full_path, new_full_path)
+                    final_name = normalized_name
+                else:
+                    os.remove(original_full_path)
+                    final_name = normalized_name
+            except Exception as e:
+                print(f"Error during rename/cleanup of {file_name}: {e}")
+                return GLib.SOURCE_REMOVE
+
+        if self._is_image(final_name) and final_name not in self.files:
+            self.files.append(final_name)
+            self.files.sort()
+            self.executor.submit(self._process_file, final_name)
+        
+        return GLib.SOURCE_REMOVE
 
     def arrange_viewport(self, query: str = ""):
         model = self.viewport.get_model()
