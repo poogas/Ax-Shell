@@ -93,7 +93,7 @@ Enable the shell in your Home Manager configuration.
     enable = true;
   };
 
-  # Ax-Shell needs Hyprland to run
+  # Ax-Shell needs Hyprland to run. See the integration guide below.
   wayland.windowManager.hyprland = {
     enable = true;
     # ... your hyprland settings
@@ -130,16 +130,11 @@ Here is an example demonstrating common customizations:
         position = "Top"; # "Top", "Bottom", "Left", "Right"
         theme = "Pills";  # "Pills", "Dense", "Edge"
       };
-      dock = {
-        enable = false; # Disable the dock
-      };
+      dock.enable = false; # Disable the dock
       panel.theme = "Notch"; # "Notch", "Panel"
 
       # --- Keybindings ---
-      keybindings = {
-        launcher = { prefix = "SUPER"; suffix = "SPACE"; };
-        power = { prefix = "SUPER"; suffix = "X"; };
-      };
+      keybindings.launcher = { prefix = "SUPER"; suffix = "SPACE"; };
     };
   };
 }
@@ -149,12 +144,46 @@ Here is an example demonstrating common customizations:
 > For a complete list of all available options, please refer to the module file: [`nix/modules/home-manager.nix`](./nix/modules/home-manager.nix).
 
 > [!NOTE]
-> For a complete, real-world example of how to integrate Ax-Shell with Hyprland, Hyprlock, and other desktop components, you can check out this reference configuration:
+> For a complete, real-world example of how to integrate Ax-Shell with Hyprland and other desktop components, you can check out this reference configuration:
 > **https://github.com/poogas/nix-config**
 
-## <sub><img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Circus%20Tent.png" alt="Circus Tent" width="25" height="25" /></sub> Recommended Integrations
+## <sub><img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Circus%20Tent.png" alt="Circus Tent" width="25" height="25" /></sub> Integrations
 
-This flake is designed to work well with other NixOS modules for a complete desktop experience.
+<details>
+<summary><strong>Core Integration: Hyprland</strong></summary>
+
+Ax-Shell is not a standalone window manager; it is a comprehensive shell environment designed to run on top of **Hyprland**.
+
+To make integration seamless, the NixOS module automatically generates the necessary Hyprland `bind` and `exec-once` directives. You can easily merge them with your personal configuration using the `++` operator.
+
+```nix
+# In your home.nix
+{ config, ... }: {
+  wayland.windowManager.hyprland = {
+    enable = true;
+
+    settings = {
+      # ... your other Hyprland settings (monitors, animations, etc.)
+
+      # --- Ax-Shell Integration ---
+      # Use the '++' operator to merge Ax-Shell's binds with your own.
+      bind = config.programs.ax-shell.hyprlandBinds ++ [
+        # Add your custom keybinds here
+        "SUPER, return, exec, alacritty"
+        "SUPER, C, killactive,"
+      ];
+
+      # Merge Ax-Shell's startup commands with your own.
+      exec-once = config.programs.ax-shell.hyprlandExecOnce ++ [
+        # Your other startup apps
+      ];
+    };
+  };
+}
+```
+> For a practical example, see this **[hyprland.nix module](https://github.com/poogas/nix-config/blob/master/home/modules/desktop/hyprland.nix)**.
+
+</details>
 
 <details>
 <summary><strong>Screen Locking & Idle Management (hyprlock, hypridle)</strong></summary>
@@ -167,17 +196,7 @@ Ax-Shell provides keybindings and UI elements for screen locking, but you need t
   # Hyprland idle daemon
   services.hypridle = {
     enable = true;
-    settings = {
-      general = {
-        lock_cmd = "hyprlock";
-        before_sleep_cmd = "loginctl lock-session";
-      };
-      listener = [
-        { timeout = 300; on-timeout = "loginctl lock-session"; }
-        { timeout = 330; on-timeout = "hyprctl dispatch dpms off"; on-resume = "hyprctl dispatch dpms on"; }
-        { timeout = 1800; on-timeout = "systemctl suspend"; }
-      ];
-    };
+    # ... your settings
   };
 
   # Hyprland screen locker
@@ -189,14 +208,13 @@ Ax-Shell provides keybindings and UI elements for screen locking, but you need t
 
       background = {
         path = config.programs.ax-shell.currentWallpaperPath;
-        blur_passes = 3;
+        # ...
       };
-      # ... your other hyprlock settings
     };
   };
 }
 ```
-
+> See a working example for **[hypridle.nix](https://github.com/poogas/nix-config/blob/master/home/modules/desktop/hypridle.nix)** and **[hyprlock.nix](https://github.com/poogas/nix-config/blob/master/home/modules/desktop/hyprlock.nix)**.
 </details>
 
 <details>
@@ -209,14 +227,11 @@ To allow the Ax-Shell launcher to open terminal-based applications (like `btop` 
 { pkgs, ... }: {
   xdg.terminal-exec = {
     enable = true;
-    settings = {
-      default = [
-        "alacritty.desktop" # Or your preferred terminal's .desktop file
-      ];
-    };
+    settings.default = [ "alacritty.desktop" ];
   };
 }
 ```
+> You can see an example implementation in this **[terminal-exec.nix module](https://github.com/poogas/nix-config/blob/master/system/desktop/terminal-exec.nix)**.
 </details>
 
 <details>
@@ -224,15 +239,8 @@ To allow the Ax-Shell launcher to open terminal-based applications (like `btop` 
 
 To sync your login screen wallpaper with your Ax-Shell wallpaper, use `sddm-dynamic-theme`.
 
-1.  **Add the input** to your `flake.nix`:
-    ```nix
-    # flake.nix
-    inputs.sddm-dynamic-theme = {
-      url = "github:poogas/nixos-sddm-dynamic-theme";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    ```
-2.  **Enable it** in your system configuration (`configuration.nix`):
+1.  **Add the input** to your `flake.nix`.
+2.  **Enable it** in your system configuration (`configuration.nix`).
     ```nix
     # configuration.nix
     { inputs, config, ... }: {
@@ -240,11 +248,12 @@ To sync your login screen wallpaper with your Ax-Shell wallpaper, use `sddm-dyna
 
       services.sddm-dynamic-theme = {
         enable = true;
-        username = "your-username"; # Must match your user
+        username = "your-username";
         avatar.sourcePath = config.home-manager.users.your-username.programs.ax-shell.settings.defaultFaceIcon;
       };
     }
     ```
+> For an example of this setup, see this **[sddm.nix file](https://github.com/poogas/nix-config/blob/master/system/desktop/sddm.nix)**.
 </details>
 
 <details>
@@ -252,15 +261,8 @@ To sync your login screen wallpaper with your Ax-Shell wallpaper, use `sddm-dyna
 
 For brightness control to work correctly on NVIDIA desktop GPUs, you need `nixos-ddcci-nvidia`.
 
-1.  **Add the input** to your `flake.nix`:
-    ```nix
-    # flake.nix
-    inputs.nixos-ddcci-nvidia = {
-      url = "github:poogas/nixos-ddcci-nvidia";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    ```
-2.  **Import the module** in your system configuration (`configuration.nix`):
+1.  **Add the input** to your `flake.nix`.
+2.  **Import the module** in your system configuration (`configuration.nix`).
     ```nix
     # configuration.nix
     { inputs, ... }: {
@@ -268,6 +270,7 @@ For brightness control to work correctly on NVIDIA desktop GPUs, you need `nixos
       hardware.ddcci.enable = true;
     }
     ```
+> An example of this module can be found in this **[ddcci.nix configuration](https://github.com/poogas/nix-config/blob/master/system/hardware/ddcci.nix)**.
 </details>
 
 ## ✨ Included Features
