@@ -12,6 +12,9 @@
   <a href="https://github.com/hyprwm/Hyprland">
     <img src="https://img.shields.io/badge/A%20hackable%20shell%20for-Hyprland-0092CD?style=for-the-badge&logo=linux&color=0092CD&logoColor=D9E0EE&labelColor=000000" alt="A hackable shell for Hyprland">
   </a>
+  <a href="https://github.com/Fabric-Development/fabric/">
+    <img src="https://img.shields.io/badge/Powered%20by-Fabric-FAFAFA?style=for-the-badge&logo=python&color=FAFAFA&logoColor=D9E0EE&labelColor=000000" alt="Powered by Fabric">
+  </a>
   <a href="https://www.nixos.org">
     <img src="https://img.shields.io/badge/Packaged%20for-NixOS-5277C3?style=for-the-badge&logo=nixos&logoColor=white&labelColor=000000" alt="Packaged for NixOS">
   </a>
